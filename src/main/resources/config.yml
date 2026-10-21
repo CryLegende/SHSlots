@@ -1,0 +1,160 @@
+# =======================================================
+# Configuration du plugin SHSlots
+# =======================================================
+
+max_slots: 3
+
+messages:
+  noPermission: '&7&l« &f&lSH &8&l» &cCommande inconnue, essayer autre chose.'
+  help:
+  - '&e&lAide SHSlots'
+  - '&6/shslots set <slot> <joueur> <temps> &f- Attribuer un slot.'
+  - '&6/shslots remove <joueur> &f- Retirer le slot d''un joueur.'
+  - '&6/shslots blacklist <add|remove> <joueur> &f- Gérer la blacklist.'
+  - '&6/shslots admin &f- Ouvrir le menu d''administration.'
+  setUsage: '&7&l« &c&lSH &8&l» &cUsage: /shslots set <slot> <pseudo> <temps>'
+  removeUsage: '&7&l« &c&lSH &8&l» &cUsage: /shslots remove <pseudo>'
+  blacklistUsage: '&7&l« &c&lSH &8&l» &cUsage: /shslots blacklist <add|remove> <pseudo>'
+  slotMessageSet: §7§l« §a§lSH §8§l» §fVotre message a été défini.
+  invalidSlotNumber: '&7&l« &c&lSH &8&l» &7Le numéro de slot doit être entre &c1 &7et
+    &c3&7.'
+  invalidSlotNumberFormat: '&7&l« &c&lSH &8&l» &cNuméro de slot invalide.'
+  enterMessageForSlot: '&7&l« &e&lSH &8&l» &fEntrez dans le chat le message pour ce
+    slot...'
+  playerNotFound: '&7&l« &c&lSH &8&l» &cJoueur non trouvé.'
+  slotOccupied: '&7&l« &c&lSH &8&l» &cCe slot est déjà occupé.'
+  alreadyOwnsSlot: '&7&l« &c&lSH &8&l» &cCe joueur a déjà un slot.'
+  playerNotInSlot: '&7&l« &c&lSH &8&l» &cCe joueur n''occupe aucun slot.'
+  playerRemoved: '&7&l« &a&lSH &8&l» &7Le joueur a bien été retiré du slot.'
+  playerBlacklisted: '&7&l« &c&lSH &8&l» &cCe joueur est blacklisté et ne peut pas
+    utiliser les slots.'
+  blacklistAdded: '&7&l« &a&lSH &8&l» &7Joueur ajouté à la blacklist.'
+  blacklistAlreadyAdded: '&7&l« &6&lSH &8&l» &7Ce joueur est déjà dans la blacklist.'
+  blacklistRemoved: '&7&l« &a&lSH &8&l» &7Joueur retiré de la blacklist.'
+  blacklistNotPresent: '&7&l« &6&lSH &8&l» &7Ce joueur n''est pas dans la blacklist.'
+
+gui:
+  main:
+    title: '&8&lMenu &8| Gestion SHSlots'
+    blacklist_button:
+      name: '&c&lGérer la Blacklist'
+      lore:
+      - ''
+      - '&7&l« &f&lDescription &8&l»'
+      - '&8• &7Affichez la liste des joueurs'
+      - '&7interdits d''utiliser les slots.'
+      - ''
+      - '&8&o(( &c&oCliquez pour gérer &8&o))'
+    slots_button:
+      name: '&e&lGérer les Slots Actifs'
+      lore:
+      - ''
+      - '&7&l« &f&lDescription &8&l»'
+      - '&8• &7Voir les slots en cours,'
+      - '&7voir les temps restants et'
+      - '&7modérer les contenus.'
+      - ''
+      - '&8&o(( &e&oCliquez pour gérer &8&o))'
+  
+  blacklist:
+    title: '&8&lMenu &8| Blacklist (%page%/%max_page%)'
+    add_button:
+      name: '&a&lAjouter un joueur'
+      lore:
+      - ''
+      - '&7&l« &f&lAction &8&l»'
+      - '&8• &7Affiche la liste des joueurs'
+      - '&7connectés pour les sanctionner.'
+      - ''
+      - '&8&o(( &a&oCliquez pour ajouter &8&o))'
+    skull_lore:
+    - ''
+    - '&7&l« &f&lInformations &8&l»'
+    - '&8• &7Sanctionné le: &f%date%'
+    - '&8• &7Dernier Slot: &f%last_message%'
+    - ''
+    - '&8&o(( &c&oClic Gauche pour retirer &8&o))'
+  
+  online_players:
+    title: '&8&lMenu &8| Joueurs en ligne (%page%/%max_page%)'
+    skull_lore:
+    - ''
+    - '&7&l« &f&lAction &8&l»'
+    - '&8• &7Ajouter ce joueur à la'
+    - '&7blacklist des slots.'
+    - ''
+    - '&8&o(( &a&oClic Gauche pour ajouter &8&o))'
+  
+  slots_list:
+    title: '&8&lMenu &8| Slots Actifs'
+    item_free:
+      name: '&a&lSlot %slot% &7(Libre)'
+      lore:
+      - ''
+      - '&7&l« &f&lÉtat &8&l»'
+      - '&8• &7Ce slot est actuellement'
+      - '&7disponible à l''achat.'
+    item_occupied:
+      name: '&e&lSlot %slot% &7(%player%)'
+      lore:
+      - ''
+      - '&7&l« &f&lInformations &8&l»'
+      - '&8• &7Joueur: &f%player%'
+      - '&8• &7Temps: &e%time%'
+      - ''
+      - '&8&o(( &e&oCliquez pour gérer &8&o))'
+  
+  slot_details:
+    title: '&8&lGestion &8| Slot #%slot%'
+    info_item:
+      name: '&e&lInformations'
+      lore:
+      - ''
+      - '&7&l« &f&lDétails du slot &8&l»'
+      - '&8• &7Joueur: &f%player%'
+      - '&8• &7Temps restant: &e%time%'
+      - ''
+      - '&7&l« &f&lMessage &8&l»'
+      - '&f%message%'
+    delete_button:
+      name: '&c&lLibérer ce slot'
+      lore:
+      - ''
+      - '&7&l« &f&lAction &8&l»'
+      - '&8• &7Retire le joueur du slot'
+      - '&7et supprime le message.'
+      - ''
+      - '&8&o(( &c&oCliquez pour libérer &8&o))'
+    blacklist_button:
+      name: '&4&lSanctionner (Blacklist)'
+      lore:
+      - ''
+      - '&7&l« &f&lAction &8&l»'
+      - '&8• &4Libère &7le slot immédiatement.'
+      - '&8• &4Ajoute &7le joueur à la blacklist.'
+      - ''
+      - '&8&o(( &4&oCliquez pour sanctionner &8&o))'
+    back_button:
+      name: '&c&lRetour'
+
+announcement:
+  interval: 15
+  message:
+  - ''
+  - '&e⭐ &d&lSLOT SPONSOR &e⭐ &7(&d/slots&7)'
+  - ''
+  - '&fAnnonce de &e%sponsor%'
+  - '&7 %message%'
+  - ''
+  - '&f&o(( &7&oCliquez pour aller sur cette île &f&o))'
+  - ''
+  hover: '&7Cliquez pour vous rendre sur l''île de &d%sponsor%'
+  click_command: /is warps %sponsor%
+  sound: BLOCK_NOTE_BLOCK_XYLOPHONE
+
+texture-service:
+  fetch-timeout:
+    connect: 5000
+    read: 7000
+
+blacklist: []
