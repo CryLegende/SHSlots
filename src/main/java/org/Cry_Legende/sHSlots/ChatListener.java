@@ -1,5 +1,6 @@
 package org.Cry_Legende.sHSlots;
 
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -31,39 +32,48 @@ public class ChatListener implements Listener {
         Player player = event.getPlayer();
         String playerName = player.getName();
 
-        if (awaitingResponse.containsKey(playerName)) {
-            // On annule pour ne pas que ça sorte dans le chat
-            event.setCancelled(true);
+        // Retrait de la liste d'attente (atomique : l'événement est asynchrone)
+        CommandData commandData = awaitingResponse.remove(playerName);
+        if (commandData == null) return;
+        commandData.cancelCountdown();
 
-            CommandData commandData = awaitingResponse.get(playerName);
+        // Slot retiré entre-temps (GUI admin, expiration) : le message part dans le chat normalement
+        if (!placeholderHandler.isSlotOccupiedByPlayer(commandData.getSlot(), playerName)) return;
 
-            // Couleur
-            String rawMessage = event.getMessage();
-            String coloredMessage = ChatColor.translateAlternateColorCodes('&', rawMessage);
+        // On annule pour ne pas que ça sorte dans le chat
+        event.setCancelled(true);
 
+        // Couleur
+        String rawMessage = event.getMessage();
+        String coloredMessage = ChatColor.translateAlternateColorCodes('&', rawMessage);
+
+        // Log fichier (reste hors du thread principal, le fichier ne fait que grossir)
+        logHandler.logMessage(playerName, commandData.getSlot(), coloredMessage);
+
+        // Le reste touche aux données partagées : thread principal
+        Bukkit.getScheduler().runTask(plugin, () -> {
             // Mise à jour Placeholder
             placeholderHandler.updateSlotMessage(commandData.getSlot(), coloredMessage);
-
-            // Log fichier
-            logHandler.logMessage(playerName, commandData.getSlot(), coloredMessage);
+            plugin.saveSlotsData();
 
             // Sauvegarde "Dernier message" pour le GUI Admin
             plugin.getPlayerDataManager().setLastMessage(playerName, coloredMessage);
 
-            // Retrait de la liste d'attente
-            awaitingResponse.remove(playerName);
-            commandData.cancelCountdown();
-
             player.sendMessage(plugin.getColoredConfigMessage("messages.slotMessageSet", "§aVotre message a été défini avec succès."));
-        }
+        });
     }
+
+    private static final Pattern DURATION = Pattern.compile("(?:(\\d+)h)?(?:(\\d+)m)?(?:(\\d+)s)?|(\\d+)");
 
     /**
      * Analyse une chaîne de durée (ex: "1h30m10s", "5m", "30") et la convertit en millisecondes.
      */
     public static long parseDuration(String durationStr) {
-        Pattern pattern = Pattern.compile("(?:(\\d+)h)?(?:(\\d+)m)?(?:(\\d+)s)?|(\\d+)");
-        Matcher matcher = pattern.matcher(durationStr);
+        // Nombre seul = secondes (la première alternative du motif le capturait en vide, soit 0)
+        if (durationStr.matches("\\d+")) {
+            return Long.parseLong(durationStr) * 1000;
+        }
+        Matcher matcher = DURATION.matcher(durationStr);
 
         if (!matcher.find()) {
             return 0;

@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
@@ -331,6 +332,8 @@ public class AdminGuiManager implements Listener {
             holder instanceof SlotDetailsMenuHolder) {
 
             event.setCancelled(true);
+            // Un clic dans l'inventaire du joueur (TNT, papier, tête...) ne doit pas déclencher d'action
+            if (event.getClickedInventory() != event.getView().getTopInventory()) return;
             if (event.getCurrentItem() == null || event.getCurrentItem().getType() == Material.AIR) return;
             Player player = (Player) event.getWhoClicked();
             ItemStack clicked = event.getCurrentItem();
@@ -423,6 +426,7 @@ public class AdminGuiManager implements Listener {
                     openSlotsListMenu(player);
                 } else if (clicked.getType() == Material.TNT) {
                     plugin.getPlaceholderHandler().removeSlotData(slotId);
+                    plugin.saveSlotsData();
                     player.sendMessage(color("&aSlot libéré."));
                     playSound(player);
                     openSlotsListMenu(player);
@@ -431,6 +435,7 @@ public class AdminGuiManager implements Listener {
                     if (data != null) {
                         String target = data.getPlayerName();
                         plugin.getPlaceholderHandler().removeSlotData(slotId);
+                        plugin.saveSlotsData();
                         if (!plugin.getBlacklistedPlayers().contains(target.toLowerCase())) {
                             plugin.getBlacklistedPlayers().add(target.toLowerCase());
                             plugin.getConfig().set("blacklist", plugin.getBlacklistedPlayers());
@@ -443,6 +448,16 @@ public class AdminGuiManager implements Listener {
                     openSlotsListMenu(player);
                 }
             }
+        }
+    }
+
+    @EventHandler
+    public void onInventoryDrag(InventoryDragEvent event) {
+        InventoryHolder holder = event.getInventory().getHolder();
+        if (holder instanceof AdminMenuHolder || holder instanceof BlacklistMenuHolder ||
+            holder instanceof OnlinePlayersMenuHolder || holder instanceof SlotsListMenuHolder ||
+            holder instanceof SlotDetailsMenuHolder) {
+            event.setCancelled(true);
         }
     }
 

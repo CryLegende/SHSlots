@@ -16,12 +16,13 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
@@ -147,8 +148,11 @@ public class TextureService {
                     return;
                 }
 
-                getPremiumUUIDFromName(playerName).thenAccept(optUUID -> {
-                    if (optUUID.isPresent()) {
+                getPremiumUUIDFromName(playerName).whenComplete((optUUID, error) -> {
+                    if (error != null) {
+                        // Échec passager (réseau, limite de requêtes) : rien en cache, on réessaiera à la prochaine ouverture
+                        fallback(meta, head, targetPlayer, callback);
+                    } else if (optUUID.isPresent()) {
                         // On a trouvé le vrai UUID Mojang
                         offlineToPremiumCache.put(primaryUUID, optUUID);
                         processTextureFetch(optUUID.get(), meta, head, targetPlayer, callback);
@@ -179,8 +183,11 @@ public class TextureService {
         }
 
         // La texture n'est pas en cache, on la télécharge
-        fetchTextureFromMojang(premiumUUID).thenAccept(result -> {
-            if (result.success && result.texture != null) {
+        fetchTextureFromMojang(premiumUUID).whenComplete((result, error) -> {
+            if (error != null) {
+                // Échec passager (réseau, limite de requêtes) : on ne mémorise pas « sans skin »
+                meta.setOwningPlayer(target);
+            } else if (result.success && result.texture != null) {
                 premiumTextureCache.put(premiumUUID, result.texture);
                 applyTexture(meta, result.texture, premiumUUID);
             } else {
@@ -214,10 +221,10 @@ public class TextureService {
 
             // Décodage Base64 pour obtenir l'URL (nécessaire pour l'API Spigot)
             String decoded = new String(Base64.getDecoder().decode(base64Texture), StandardCharsets.UTF_8);
-            JsonObject json = new JsonParser().parse(decoded).getAsJsonObject();
+            JsonObject json = JsonParser.parseString(decoded).getAsJsonObject();
             String urlStr = json.getAsJsonObject("textures").getAsJsonObject("SKIN").get("url").getAsString();
 
-            textures.setSkin(new URL(urlStr));
+            textures.setSkin(URI.create(urlStr).toURL());
             profile.setTextures(textures);
             meta.setOwnerProfile(profile);
         } catch (Exception ignored) {
@@ -227,38 +234,60 @@ public class TextureService {
 
     private CompletableFuture<Optional<UUID>> getPremiumUUIDFromName(String name) {
         return CompletableFuture.supplyAsync(() -> {
+            HttpURLConnection conn = null;
             try {
-                HttpURLConnection conn = (HttpURLConnection) new URL("https://api.mojang.com/users/profiles/minecraft/" + name).openConnection();
+                conn = (HttpURLConnection) URI.create("https://api.mojang.com/users/profiles/minecraft/" + name).toURL().openConnection();
                 conn.setConnectTimeout(connectTimeout);
                 conn.setReadTimeout(readTimeout);
-                if (conn.getResponseCode() == 200) {
-                    JsonObject json = new JsonParser().parse(new InputStreamReader(conn.getInputStream())).getAsJsonObject();
-                    String id = json.get("id").getAsString();
-                    // Ajout des tirets à l'UUID
-                    return Optional.of(UUID.fromString(id.replaceFirst("(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})", "$1-$2-$3-$4-$5")));
+                int code = conn.getResponseCode();
+                if (code == 200) {
+                    try (InputStreamReader reader = new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8)) {
+                        JsonObject json = JsonParser.parseReader(reader).getAsJsonObject();
+                        String id = json.get("id").getAsString();
+                        // Ajout des tirets à l'UUID
+                        return Optional.of(UUID.fromString(id.replaceFirst("(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})", "$1-$2-$3-$4-$5")));
+                    }
                 }
-            } catch (Exception ignored) {
+                // Pseudo inconnu chez Mojang : réponse définitive
+                if (code == 204 || code == 404) return Optional.empty();
+                throw new IOException("HTTP " + code);
+            } catch (Exception e) {
+                // Le futur échoue : l'appelant ne mémorise rien
+                throw new CompletionException(e);
+            } finally {
+                // Libère la connexion (le flux n'était jamais fermé)
+                if (conn != null) conn.disconnect();
             }
-            return Optional.empty();
         });
     }
 
     private CompletableFuture<TextureFetchResult> fetchTextureFromMojang(UUID uuid) {
         return CompletableFuture.supplyAsync(() -> {
+            HttpURLConnection conn = null;
             try {
-                HttpURLConnection conn = (HttpURLConnection) new URL("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid + "?unsigned=false").openConnection();
+                conn = (HttpURLConnection) URI.create("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid + "?unsigned=false").toURL().openConnection();
                 conn.setConnectTimeout(connectTimeout);
                 conn.setReadTimeout(readTimeout);
-                if (conn.getResponseCode() == 200) {
-                    JsonObject json = new JsonParser().parse(new InputStreamReader(conn.getInputStream())).getAsJsonObject();
-                    if (json.has("properties")) {
-                        String texture = json.getAsJsonArray("properties").get(0).getAsJsonObject().get("value").getAsString();
-                        return new TextureFetchResult(texture, true);
+                int code = conn.getResponseCode();
+                if (code == 200) {
+                    try (InputStreamReader reader = new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8)) {
+                        JsonObject json = JsonParser.parseReader(reader).getAsJsonObject();
+                        if (json.has("properties")) {
+                            String texture = json.getAsJsonArray("properties").get(0).getAsJsonObject().get("value").getAsString();
+                            return new TextureFetchResult(texture, true);
+                        }
                     }
+                    return new TextureFetchResult(null, false);
                 }
-            } catch (Exception ignored) {
+                // Profil inexistant : réponse définitive
+                if (code == 204 || code == 404) return new TextureFetchResult(null, false);
+                throw new IOException("HTTP " + code);
+            } catch (Exception e) {
+                // Le futur échoue : l'appelant ne mémorise rien
+                throw new CompletionException(e);
+            } finally {
+                if (conn != null) conn.disconnect();
             }
-            return new TextureFetchResult(null, false);
         });
     }
 

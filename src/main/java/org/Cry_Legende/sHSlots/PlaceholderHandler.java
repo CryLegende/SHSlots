@@ -4,12 +4,13 @@ import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PlaceholderHandler extends PlaceholderExpansion {
     private final SHSlots plugin;
-    private final Map<Integer, SlotData> slotDataMap = new HashMap<>();
+    // PlaceholderAPI peut être interrogé hors du thread principal
+    private final Map<Integer, SlotData> slotDataMap = new ConcurrentHashMap<>();
 
     public PlaceholderHandler(SHSlots plugin) {
         this.plugin = plugin;
@@ -51,7 +52,8 @@ public class PlaceholderHandler extends PlaceholderExpansion {
 
             SlotData data = slotDataMap.getOrDefault(slot, new SlotData("", new String[]{"", "", ""}, System.currentTimeMillis(), 0));
             if (data.getRemainingTime() <= 0) {
-                slotDataMap.remove(slot);
+                // remove(clé, valeur) : ne retire pas un slot réattribué entre-temps par le thread principal
+                slotDataMap.remove(slot, data);
                 return getDefaultValueForPlaceholder();
             }
 
@@ -86,10 +88,15 @@ public class PlaceholderHandler extends PlaceholderExpansion {
     }
 
     public void updateSlotMessage(int slot, String message) {
-        if (slotDataMap.containsKey(slot)) {
-            SlotData currentData = slotDataMap.get(slot);
+        SlotData currentData = slotDataMap.get(slot);
+        if (currentData != null) {
             slotDataMap.put(slot, new SlotData(currentData.playerName, splitMessageIntoLines(message), currentData.startTime, currentData.duration));
         }
+    }
+
+    /** Retire les slots expirés (sinon un ancien slot bloque l'attribution d'un nouveau). */
+    public void purgeExpired() {
+        slotDataMap.values().removeIf(data -> data.getRemainingTime() <= 0);
     }
 
     private String[] splitMessageIntoLines(String message) {
@@ -164,7 +171,7 @@ public class PlaceholderHandler extends PlaceholderExpansion {
 
     public boolean isSlotOccupiedByPlayer(int slot, String playerName) {
         SlotData data = slotDataMap.get(slot);
-        return data != null && data.getPlayerName().equals(playerName);
+        return data != null && data.getPlayerName().equalsIgnoreCase(playerName);
     }
 
     private String getDefaultValueForPlaceholder() {
@@ -185,7 +192,7 @@ public class PlaceholderHandler extends PlaceholderExpansion {
     }
 
     public boolean hasSlot(String playerName) {
-        return slotDataMap.values().stream().anyMatch(data -> data.getPlayerName().equals(playerName));
+        return slotDataMap.values().stream().anyMatch(data -> data.getPlayerName().equalsIgnoreCase(playerName));
     }
 
     public int getSlotByPlayerName(String playerName) {

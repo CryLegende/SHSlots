@@ -100,7 +100,14 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(plugin.getColoredConfigMessage("messages.playerNotFound", "§cJoueur non trouvé."));
             return;
         }
+        // getPlayer accepte un début de pseudo : on garde le vrai pseudo, sinon le chat ne correspond jamais
+        targetPlayerName = targetPlayer.getName();
+        if (plugin.getBlacklistedPlayers().contains(targetPlayerName.toLowerCase())) {
+            sender.sendMessage(plugin.getColoredConfigMessage("messages.playerBlacklisted", "§cCe joueur est blacklisté."));
+            return;
+        }
 
+        placeholderHandler.purgeExpired();
         if (placeholderHandler.isSlotOccupied(slot) && !placeholderHandler.isSlotOccupiedByPlayer(slot, targetPlayerName)) {
             sender.sendMessage(plugin.getColoredConfigMessage("messages.slotOccupied", "§cCe slot est déjà occupé."));
             return;
@@ -113,14 +120,18 @@ public class MainCommand implements CommandExecutor, TabCompleter {
 
         long durationInMilliseconds = ChatListener.parseDuration(args[3]);
         placeholderHandler.setSlotData(slot, targetPlayerName, "", durationInMilliseconds);
+        plugin.saveSlotsData();
 
         CommandData commandData = new CommandData(slot, targetPlayerName, args[3]);
-        awaitingResponse.put(targetPlayerName, commandData);
+        CommandData previous = awaitingResponse.put(targetPlayerName, commandData);
+        // L'ancien délai retirerait sinon la nouvelle attente avant ses 2 minutes
+        if (previous != null) previous.cancelCountdown();
 
+        String waitingName = targetPlayerName;
         BukkitRunnable countdownTask = new BukkitRunnable() {
             @Override
             public void run() {
-                awaitingResponse.remove(targetPlayerName);
+                awaitingResponse.remove(waitingName, commandData);
             }
         };
         countdownTask.runTaskLater(this.plugin, 2400L); // 2 minutes
@@ -136,6 +147,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         }
 
         String targetPlayerName = args[1];
+        placeholderHandler.purgeExpired();
         int slot = placeholderHandler.getSlotByPlayerName(targetPlayerName);
 
         if (slot == -1) {
@@ -143,7 +155,12 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
+        PlaceholderHandler.SlotData data = placeholderHandler.getSlotDataMap().get(slot);
         placeholderHandler.removeSlotData(slot);
+        plugin.saveSlotsData();
+        // Plus de message à attendre pour un slot retiré
+        CommandData pending = data == null ? null : awaitingResponse.remove(data.getPlayerName());
+        if (pending != null) pending.cancelCountdown();
         sender.sendMessage(plugin.getColoredConfigMessage("messages.playerRemoved", "§aLe joueur a été retiré du slot."));
     }
 

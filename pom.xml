@@ -24,6 +24,9 @@
                 <version>3.13.0</version>
                 <configuration>
                     <release>${java.version}</release>
+                    <!-- javac 25 en processus plante quand les avertissements de dépréciation sont affichés
+                         (NPE "this.hashes" is null, JDK-8210649) : compilation dans un processus séparé -->
+                    <fork>true</fork>
                 </configuration>
             </plugin>
             <plugin>

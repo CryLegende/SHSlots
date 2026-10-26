@@ -29,7 +29,8 @@ public class LogHandler {
         this.logConfig = YamlConfiguration.loadConfiguration(logFile);
     }
 
-    public void logMessage(String playerName, int slot, String message) {
+    // Appelée depuis le thread asynchrone du chat
+    public synchronized void logMessage(String playerName, int slot, String message) {
         String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
         String logEntry = "[" + timestamp + "] Joueur: " + playerName + ", Slot: " + slot + ", Message: " + message;
 

@@ -2,6 +2,8 @@ package org.Cry_Legende.sHSlots;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -15,12 +17,19 @@ import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.ComponentBuilder;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SHSlots extends JavaPlugin {
 
@@ -32,7 +41,7 @@ public class SHSlots extends JavaPlugin {
     private List<String> announcementMessage;
     private String announcementHover;
     private String announcementClickCommand;
-    private String announcementSound;
+    private Sound announcementSound;
     private List<String> blacklistedPlayers;
 
     // Managers
@@ -47,7 +56,8 @@ public class SHSlots extends JavaPlugin {
         saveDefaultConfig();
         reloadConfig();
 
-        awaitingResponse = new HashMap<>();
+        // Lue depuis le thread du chat (asynchrone) et depuis les commandes
+        awaitingResponse = new ConcurrentHashMap<>();
 
         // Initialisation des services (Ordre important)
         this.textureService = new TextureService(this);
@@ -82,15 +92,22 @@ public class SHSlots extends JavaPlugin {
         announcementMessage = getColoredStringList("announcement.message");
         announcementHover = getColoredConfigMessage("announcement.hover", "&7Cliquez pour plus d'informations.");
         announcementClickCommand = getConfig().getString("announcement.click_command", "/msg %sponsor% Bonjour !");
-        announcementSound = getConfig().getString("announcement.sound", "ENTITY_PLAYER_LEVELUP");
+        String soundName = getConfig().getString("announcement.sound", "ENTITY_PLAYER_LEVELUP");
+        announcementSound = sound(soundName);
+        if (announcementSound == null) {
+            getLogger().warning("Son invalide dans la configuration : " + soundName);
+        }
 
         startAnnouncementTask();
     }
 
     @Override
     public void onDisable() {
-        saveSlotsData();
-        saveBlacklist();
+        // Rien à écrire si onEnable a échoué avant le chargement : on n'efface pas les données sauvegardées
+        if (placeholderHandler != null && blacklistedPlayers != null) {
+            saveSlotsData();
+            saveBlacklist();
+        }
         if (textureService != null) {
             textureService.saveCaches();
         }
@@ -134,8 +151,8 @@ public class SHSlots extends JavaPlugin {
 
     private void loadSlotsData() {
         JSONParser parser = new JSONParser();
-        try {
-            FileReader reader = new FileReader(getDataFolder() + "/" + slotsDataFile);
+        File file = new File(getDataFolder(), slotsDataFile);
+        try (FileReader reader = new FileReader(file)) {
             JSONArray slotsArray = (JSONArray) parser.parse(reader);
 
             for (Object o : slotsArray) {
@@ -146,12 +163,23 @@ public class SHSlots extends JavaPlugin {
                 long time = (Long) slotObject.get("time");
                 placeholderHandler.setSlotData(slot, playerName, message, time);
             }
+        } catch (FileNotFoundException e) {
+            // Fichier non trouvé, normal au premier lancement
         } catch (Exception e) {
-            // Fichier non trouvé ou vide, normal au premier lancement
+            // Fichier vide ou illisible : copie avant qu'il soit réécrit à l'arrêt
+            if (file.length() > 0) {
+                getLogger().warning("Lecture de " + slotsDataFile + " impossible (" + e + "), copie dans " + slotsDataFile + ".corrompu");
+                try {
+                    Files.copy(file.toPath(), new File(getDataFolder(), slotsDataFile + ".corrompu").toPath(), StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException ex) {
+                    getLogger().warning("Copie de " + slotsDataFile + " impossible : " + ex.getMessage());
+                }
+            }
         }
     }
 
-    private void saveSlotsData() {
+    /** Sauvegarde les slots (appelée à chaque modification pour ne rien perdre en cas de crash). */
+    void saveSlotsData() {
         JSONArray slotsArray = new JSONArray();
         for (Map.Entry<Integer, PlaceholderHandler.SlotData> entry : placeholderHandler.getSlotDataMap().entrySet()) {
             JSONObject slotObject = new JSONObject();
@@ -163,11 +191,19 @@ public class SHSlots extends JavaPlugin {
             slotsArray.add(slotObject);
         }
 
-        try (FileWriter file = new FileWriter(getDataFolder() + "/" + slotsDataFile)) {
+        // Écriture dans un fichier temporaire puis remplacement : un arrêt brutal ne laisse pas un fichier tronqué
+        File target = new File(getDataFolder(), slotsDataFile);
+        File tmp = new File(getDataFolder(), slotsDataFile + ".tmp");
+        try (FileWriter file = new FileWriter(tmp, StandardCharsets.UTF_8)) {
             file.write(slotsArray.toJSONString());
-            file.flush();
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            getLogger().warning("Sauvegarde de " + slotsDataFile + " impossible : " + e.getMessage());
+            return;
+        }
+        try {
+            Files.move(tmp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (IOException e) {
+            getLogger().warning("Remplacement de " + slotsDataFile + " impossible : " + e.getMessage());
         }
     }
 
@@ -231,13 +267,24 @@ public class SHSlots extends JavaPlugin {
     }
 
     private void playAnnouncementSound() {
+        if (announcementSound == null) return;
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            player.playSound(player.getLocation(), announcementSound, 1.0f, 1.0f);
+        }
+    }
+
+    /** Son lu en config : ancien nom (ENTITY_PLAYER_LEVELUP) ou clé (minecraft:entity.player.levelup). */
+    static Sound sound(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String s = raw.trim();
+        if (s.indexOf(':') >= 0 || s.indexOf('.') >= 0) {
+            NamespacedKey key = NamespacedKey.fromString(s.toLowerCase(Locale.ROOT));
+            return key == null ? null : Registry.SOUND_EVENT.get(key);
+        }
         try {
-            Sound sound = Sound.valueOf(announcementSound.toUpperCase());
-            for (Player player : Bukkit.getOnlinePlayers()) {
-                player.playSound(player.getLocation(), sound, 1.0f, 1.0f);
-            }
-        } catch (IllegalArgumentException e) {
-            getLogger().warning("Son invalide dans la configuration : " + announcementSound);
+            return (Sound) Sound.class.getField(s.toUpperCase(Locale.ROOT)).get(null);
+        } catch (ReflectiveOperationException | ClassCastException e) {
+            return null;
         }
     }
 
