@@ -1,9 +1,26 @@
-# =======================================================
-# Configuration du plugin SHSlots
-# =======================================================
+# ----------------------------------------------------------------#
+#                    Configuration de SHSlots                     #
+# ----------------------------------------------------------------#
+#
+# Emplacements d'affichage temporaires (slots) attribués à des joueurs : chaque slot montre un pseudo et un message
+# (placeholders PlaceholderAPI) et est annoncé dans le chat avec un lien vers l'île du sponsor.
+#
+# Commandes :
+#   /shslots set <slot> <joueur> <temps>      Attribue un slot à un joueur pour une durée (exemple : 1h30m).
+#   /shslots remove <joueur>                  Retire le slot d'un joueur.
+#   /shslots blacklist add|remove <joueur>    Ajoute un joueur à la blacklist des slots, ou l'en retire.
+#   /shslots admin                            Ouvre le menu d'administration.
+#
+# Permission :
+#   shslots.use   Utiliser /shslots.
+#
+# Les textes sont dans les sections messages et gui de ce fichier. Les messages saisis par les joueurs pour leur slot
+# sont écrits dans le fichier messages de SHLogs.
 
+# Nombre de slots disponibles (numérotés de 1 à max_slots).
 max_slots: 3
 
+# Messages du plugin, avec codes couleur &.
 messages:
   noPermission: '&7&l« &f&lSH &8&l» &cCommande inconnue, essayer autre chose.'
   help:
@@ -33,6 +50,8 @@ messages:
   blacklistRemoved: '&7&l« &a&lSH &8&l» &7Joueur retiré de la blacklist.'
   blacklistNotPresent: '&7&l« &6&lSH &8&l» &7Ce joueur n''est pas dans la blacklist.'
 
+# Textes des menus d'administration, avec codes couleur &. Placeholders : %page%, %max_page%, %slot%, %player%, %time%,
+# %date%, %last_message%, %message%.
 gui:
   main:
     title: '&8&lMenu &8| Gestion SHSlots'
@@ -137,8 +156,12 @@ gui:
     back_button:
       name: '&c&lRetour'
 
+# Annonce des slots dans le chat.
 announcement:
+  # Minutes entre deux annonces.
   interval: 15
+  # Texte de l'annonce, envoyée à chaque intervalle pour un slot occupé, à tour de rôle.
+  # Placeholders : %sponsor% (pseudo), %message% (message du slot).
   message:
   - ''
   - '&e⭐ &d&lSLOT SPONSOR &e⭐ &7(&d/slots&7)'
@@ -148,13 +171,20 @@ announcement:
   - ''
   - '&f&o(( &7&oCliquez pour aller sur cette île &f&o))'
   - ''
+  # Texte affiché au survol de l'annonce.
   hover: '&7Cliquez pour vous rendre sur l''île de &d%sponsor%'
+  # Commande lancée par le clic sur l'annonce.
   click_command: /is warps %sponsor%
+  # Son joué avec l'annonce.
   sound: BLOCK_NOTE_BLOCK_XYLOPHONE
 
+# Récupération des skins des joueurs pour les têtes des menus.
 texture-service:
   fetch-timeout:
+    # Délai de connexion, en millisecondes.
     connect: 5000
+    # Délai de lecture, en millisecondes.
     read: 7000
 
+# Joueurs interdits d'utiliser les slots. Modifié par /shslots blacklist et par le menu d'administration.
 blacklist: []

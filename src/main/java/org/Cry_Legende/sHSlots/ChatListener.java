@@ -47,7 +47,7 @@ public class ChatListener implements Listener {
         String rawMessage = event.getMessage();
         String coloredMessage = ChatColor.translateAlternateColorCodes('&', rawMessage);
 
-        // Log fichier (reste hors du thread principal, le fichier ne fait que grossir)
+        // Journal SHLogs (écrit hors du thread principal)
         logHandler.logMessage(playerName, commandData.getSlot(), coloredMessage);
 
         // Le reste touche aux données partagées : thread principal

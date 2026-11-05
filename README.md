@@ -21,6 +21,7 @@ Utilisé sur : **Opale**.
 ## Dépendances
 
 - Obligatoires : `PlaceholderAPI`
+- Optionnelle : `SHLogs`
 
 ## Commandes
 
@@ -36,6 +37,8 @@ Fichiers par défaut repris du serveur (secrets remplacés par `CHANGE_ME`). Cli
 plugins/SHSlots/
 └── <a href="src/main/resources/config.yml">config.yml</a>
 </pre>
+
+Chaque message saisi par un joueur pour son slot est écrit dans le fichier `messages` du dossier `SHSlots` de SHLogs (`plugins/SHLogs/`). Sans SHLogs, les lignes passent dans la console. Le dernier message de chaque joueur, affiché dans le menu d'administration, reste dans `users.yml`.
 
 ## Compilation
 
