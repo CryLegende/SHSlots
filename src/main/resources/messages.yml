@@ -1,0 +1,14 @@
+# Textes propres au mode réseau de SHSlots (SHNetwork). Les autres messages sont dans la section messages de config.yml.
+# Codes couleur &.
+
+# Une commande ou une saisie n'a pas pu être enregistrée : la base partagée ne répond pas.
+database_error: "&7&l« &c&lSH &8&l» &7La base des slots &cne répond pas&7, réessayez dans un instant."
+
+# Le joueur a saisi son message mais le slot a été libéré ou réattribué entre-temps.
+slot_lost: "&7&l« &c&lSH &8&l» &7Votre slot &cn'est plus actif&7, votre message n'a pas été enregistré."
+
+# /shslots import terminée. %SLOTS% = slots ajoutés à la base, %USERS% = joueurs ajoutés (messages et blacklist).
+import_success: "&7&l« &a&lSH &8&l» &a%SLOTS%&7 slots et &a%USERS%&7 joueurs importés dans la base du réseau."
+
+# /shslots import : fichier illisible ou base injoignable.
+import_error: "&7&l« &c&lSH &8&l» &7Importation &céchouée&7, voir la console."

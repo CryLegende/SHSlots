@@ -52,6 +52,12 @@ public class ChatListener implements Listener {
 
         // Le reste touche aux données partagées : thread principal
         Bukkit.getScheduler().runTask(plugin, () -> {
+            NetworkSlots net = plugin.network();
+            if (net != null) {
+                saveNetworkMessage(net, player, commandData.getSlot(), coloredMessage);
+                return;
+            }
+
             // Mise à jour Placeholder
             placeholderHandler.updateSlotMessage(commandData.getSlot(), coloredMessage);
             plugin.saveSlotsData();
@@ -61,6 +67,25 @@ public class ChatListener implements Listener {
 
             player.sendMessage(plugin.getColoredConfigMessage("messages.slotMessageSet", "§aVotre message a été défini avec succès."));
         });
+    }
+
+    /**
+     * Mode réseau : le message est écrit dans la base partagée, d'où tous les serveurs le relisent. La saisie a lieu sur
+     * le serveur où se trouve le joueur, qui n'est pas forcément celui où l'administrateur a donné le slot.
+     */
+    private void saveNetworkMessage(NetworkSlots net, Player player, int slot, String coloredMessage) {
+        String playerName = player.getName();
+        net.setMessage(slot, playerName, coloredMessage).whenComplete((written, error) -> plugin.runMain(() -> {
+            if (error != null) {
+                // la base ne répond pas : le joueur peut ressaisir son message pendant 2 minutes
+                net.registerAwaiting(playerName, slot);
+                player.sendMessage(plugin.networkMessage("database_error"));
+            } else if (!written) {
+                player.sendMessage(plugin.networkMessage("slot_lost"));
+            } else {
+                player.sendMessage(plugin.getColoredConfigMessage("messages.slotMessageSet", "§aVotre message a été défini avec succès."));
+            }
+        }));
     }
 
     private static final Pattern DURATION = Pattern.compile("(?:(\\d+)h)?(?:(\\d+)m)?(?:(\\d+)s)?|(\\d+)");

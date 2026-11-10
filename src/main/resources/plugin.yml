@@ -4,10 +4,16 @@ main: org.Cry_Legende.sHSlots.SHSlots
 api-version: '1.20'
 author: Cry_Legende
 depend: [PlaceholderAPI]
-softdepend: [SHLogs]
+# SHNetwork est facultatif : sans lui, les slots restent locaux à ce serveur comme avant.
+softdepend: [SHLogs, SHNetwork]
+# Chargées par Paper dans le classloader du plugin : le serveur n'embarque que les pilotes MySQL et SQLite.
+# Seul le mode réseau (slots et blacklist en MariaDB) s'en sert.
+libraries:
+  - com.zaxxer:HikariCP:5.1.0
+  - org.mariadb.jdbc:mariadb-java-client:3.4.1
 
 commands:
   shslots:
     description: Commande principale pour la gestion des slots.
-    usage: "/shslots <set|remove|blacklist>"
+    usage: "/shslots <set|remove|blacklist|admin|import>"
     permission: shslots.use

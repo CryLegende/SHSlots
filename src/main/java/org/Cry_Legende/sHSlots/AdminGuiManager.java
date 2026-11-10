@@ -364,6 +364,15 @@ public class AdminGuiManager implements Listener {
                     openMainAdminMenu(player);
                 } else if (clicked.getType() == Material.PLAYER_HEAD) {
                     String name = ChatColor.stripColor(clicked.getItemMeta().getDisplayName());
+                    if (plugin.network() != null) {
+                        plugin.network().blacklistRemove(name.toLowerCase()).whenComplete((removed, error) -> plugin.runMain(() -> {
+                            if (failed(player, error)) return;
+                            player.sendMessage(color(plugin.getConfig().getString("messages.blacklistRemoved")));
+                            playSound(player);
+                            openBlacklistMenu(player, menu.getPage());
+                        }));
+                        return;
+                    }
                     plugin.getBlacklistedPlayers().remove(name.toLowerCase());
                     plugin.getConfig().set("blacklist", plugin.getBlacklistedPlayers());
                     plugin.saveConfig();
@@ -386,6 +395,17 @@ public class AdminGuiManager implements Listener {
                     openBlacklistMenu(player, 1);
                 } else if (clicked.getType() == Material.PLAYER_HEAD) {
                     String name = ChatColor.stripColor(clicked.getItemMeta().getDisplayName());
+                    if (plugin.network() != null) {
+                        if (!plugin.getBlacklistedPlayers().contains(name.toLowerCase())) {
+                            plugin.network().blacklistAdd(name.toLowerCase()).whenComplete((added, error) -> plugin.runMain(() -> {
+                                if (failed(player, error)) return;
+                                player.sendMessage(color(plugin.getConfig().getString("messages.blacklistAdded")));
+                                playSound(player);
+                                openOnlinePlayersMenu(player, menu.getPage());
+                            }));
+                        }
+                        return;
+                    }
                     if (!plugin.getBlacklistedPlayers().contains(name.toLowerCase())) {
                         plugin.getBlacklistedPlayers().add(name.toLowerCase());
                         plugin.getConfig().set("blacklist", plugin.getBlacklistedPlayers());
@@ -425,6 +445,17 @@ public class AdminGuiManager implements Listener {
                     playSound(player);
                     openSlotsListMenu(player);
                 } else if (clicked.getType() == Material.TNT) {
+                    if (plugin.network() != null) {
+                        PlaceholderHandler.SlotData current = plugin.getPlaceholderHandler().getSlotDataMap().get(slotId);
+                        String owner = current == null ? null : current.getPlayerName();
+                        plugin.network().freeSlot(slotId, owner).whenComplete((freed, error) -> plugin.runMain(() -> {
+                            if (failed(player, error)) return;
+                            player.sendMessage(color("&aSlot libéré."));
+                            playSound(player);
+                            openSlotsListMenu(player);
+                        }));
+                        return;
+                    }
                     plugin.getPlaceholderHandler().removeSlotData(slotId);
                     plugin.saveSlotsData();
                     player.sendMessage(color("&aSlot libéré."));
@@ -432,6 +463,21 @@ public class AdminGuiManager implements Listener {
                     openSlotsListMenu(player);
                 } else if (clicked.getType() == Material.REDSTONE_BLOCK) {
                     PlaceholderHandler.SlotData data = plugin.getPlaceholderHandler().getSlotDataMap().get(slotId);
+                    if (data != null && plugin.network() != null) {
+                        String target = data.getPlayerName();
+                        plugin.network().freeSlot(slotId, target)
+                            .thenCompose(freed -> plugin.network().blacklistAdd(target.toLowerCase()))
+                            .whenComplete((added, error) -> plugin.runMain(() -> {
+                                if (failed(player, error)) {
+                                    openSlotsListMenu(player);
+                                    return;
+                                }
+                                player.sendMessage(color("&c" + target + " blacklisté et slot libéré."));
+                                playSound(player);
+                                openSlotsListMenu(player);
+                            }));
+                        return;
+                    }
                     if (data != null) {
                         String target = data.getPlayerName();
                         plugin.getPlaceholderHandler().removeSlotData(slotId);
@@ -462,6 +508,13 @@ public class AdminGuiManager implements Listener {
     }
 
     // --- HELPERS ---
+
+    /** Mode réseau : prévient l'administrateur si la base n'a pas répondu. Vrai en cas d'erreur. */
+    private boolean failed(Player player, Throwable error) {
+        if (error == null) return false;
+        player.sendMessage(plugin.networkMessage("database_error"));
+        return true;
+    }
 
     private ItemStack createItem(Material mat, String name, List<String> lore) {
         ItemStack item = new ItemStack(mat);

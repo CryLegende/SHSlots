@@ -4,6 +4,7 @@ import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -92,6 +93,11 @@ public class PlaceholderHandler extends PlaceholderExpansion {
         if (currentData != null) {
             slotDataMap.put(slot, new SlotData(currentData.playerName, splitMessageIntoLines(message), currentData.startTime, currentData.duration));
         }
+    }
+
+    /** Mode réseau : ne garde que les slots de la liste (ceux que la base a encore). */
+    public void retainSlots(Collection<Integer> slots) {
+        slotDataMap.keySet().retainAll(slots);
     }
 
     /** Retire les slots expirés (sinon un ancien slot bloque l'attribution d'un nouveau). */

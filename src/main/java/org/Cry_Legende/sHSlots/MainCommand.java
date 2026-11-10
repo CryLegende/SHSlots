@@ -1,5 +1,6 @@
 package org.Cry_Legende.sHSlots;
 
+import org.Cry_Legende.sHSlots.network.SlotsDb;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -51,6 +52,14 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             case "blacklist":
                 handleBlacklist(sender, args);
                 break;
+            case "import":
+                // importation réservée au mode réseau : sans lui, la commande est inconnue comme avant
+                if (plugin.network() == null) {
+                    sendHelpMessage(sender);
+                } else {
+                    handleImport(sender);
+                }
+                break;
             case "admin":
                 if (sender instanceof Player) {
                     plugin.getAdminGuiManager().openMainAdminMenu((Player) sender);
@@ -92,6 +101,11 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             }
         } catch (NumberFormatException e) {
             sender.sendMessage(plugin.getColoredConfigMessage("messages.invalidSlotNumberFormat", "§cNuméro de slot invalide."));
+            return;
+        }
+
+        if (plugin.network() != null) {
+            handleSetNetwork(sender, slot, targetPlayerName, args[3]);
             return;
         }
 
@@ -140,6 +154,50 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         targetPlayer.sendMessage(plugin.getColoredConfigMessage("messages.enterMessageForSlot", "§eEntrez le message pour le slot %slot%...").replace("%slot%", String.valueOf(slot)));
     }
 
+    /**
+     * Mode réseau : le joueur visé peut être sur un autre serveur. La base tranche « slot occupé » et « déjà un slot »,
+     * puis le bus invite le joueur à saisir son message dans le chat du serveur où il se trouve.
+     */
+    private void handleSetNetwork(CommandSender sender, int slot, String typedName, String duration) {
+        NetworkSlots net = plugin.network();
+        // Ce serveur d'abord (un début de pseudo est accepté comme en mode local), puis le reste du réseau
+        Player local = Bukkit.getPlayer(typedName);
+        String targetPlayerName = local != null ? local.getName() : net.find(typedName).orElse(null);
+        if (targetPlayerName == null) {
+            sender.sendMessage(plugin.getColoredConfigMessage("messages.playerNotFound", "§cJoueur non trouvé."));
+            return;
+        }
+        if (plugin.getBlacklistedPlayers().contains(targetPlayerName.toLowerCase())) {
+            sender.sendMessage(plugin.getColoredConfigMessage("messages.playerBlacklisted", "§cCe joueur est blacklisté."));
+            return;
+        }
+
+        long durationInMilliseconds = ChatListener.parseDuration(duration);
+        net.assign(slot, targetPlayerName, durationInMilliseconds).whenComplete((result, error) -> plugin.runMain(() -> {
+            if (error != null) {
+                sender.sendMessage(plugin.networkMessage("database_error"));
+            } else if (result == SlotsDb.AssignResult.SLOT_OCCUPIED) {
+                sender.sendMessage(plugin.getColoredConfigMessage("messages.slotOccupied", "§cCe slot est déjà occupé."));
+            } else if (result == SlotsDb.AssignResult.ALREADY_OWNS) {
+                sender.sendMessage(plugin.getColoredConfigMessage("messages.alreadyOwnsSlot", "§cCe joueur possède déjà un slot."));
+            }
+        }));
+    }
+
+    /** /shslots import : reprend slots_data.json, users.yml et la blacklist de config.yml dans la base du réseau. */
+    private void handleImport(CommandSender sender) {
+        plugin.network().importLegacy().whenComplete((counts, error) -> plugin.runMain(() -> {
+            if (error != null) {
+                plugin.getLogger().warning("Importation impossible : " + (error.getCause() != null ? error.getCause() : error));
+                sender.sendMessage(plugin.networkMessage("import_error"));
+            } else {
+                sender.sendMessage(plugin.networkMessage("import_success")
+                    .replace("%SLOTS%", String.valueOf(counts.slots()))
+                    .replace("%USERS%", String.valueOf(counts.users())));
+            }
+        }));
+    }
+
     private void handleRemove(CommandSender sender, String[] args) {
         if (args.length != 2) {
             sender.sendMessage(plugin.getColoredConfigMessage("messages.removeUsage", "§cUsage: /shslots remove <pseudo>"));
@@ -147,6 +205,18 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         }
 
         String targetPlayerName = args[1];
+        if (plugin.network() != null) {
+            plugin.network().removeByPlayer(targetPlayerName).whenComplete((removed, error) -> plugin.runMain(() -> {
+                if (error != null) {
+                    sender.sendMessage(plugin.networkMessage("database_error"));
+                } else if (!removed) {
+                    sender.sendMessage(plugin.getColoredConfigMessage("messages.playerNotInSlot", "§cCe joueur ne possède aucun slot."));
+                } else {
+                    sender.sendMessage(plugin.getColoredConfigMessage("messages.playerRemoved", "§aLe joueur a été retiré du slot."));
+                }
+            }));
+            return;
+        }
         placeholderHandler.purgeExpired();
         int slot = placeholderHandler.getSlotByPlayerName(targetPlayerName);
 
@@ -172,6 +242,10 @@ public class MainCommand implements CommandExecutor, TabCompleter {
 
         String action = args[1].toLowerCase();
         String playerName = args[2].toLowerCase();
+        if (plugin.network() != null) {
+            handleBlacklistNetwork(sender, action, playerName);
+            return;
+        }
         List<String> blacklist = plugin.getBlacklistedPlayers();
 
         if (action.equals("add")) {
@@ -200,6 +274,25 @@ public class MainCommand implements CommandExecutor, TabCompleter {
     }
 
 
+    /** Mode réseau : la blacklist est dans la base partagée, config.yml n'est pas réécrit. */
+    private void handleBlacklistNetwork(CommandSender sender, String action, String playerName) {
+        NetworkSlots net = plugin.network();
+        boolean add = action.equals("add");
+        (add ? net.blacklistAdd(playerName) : net.blacklistRemove(playerName)).whenComplete((changed, error) -> plugin.runMain(() -> {
+            if (error != null) {
+                sender.sendMessage(plugin.networkMessage("database_error"));
+            } else if (add) {
+                sender.sendMessage(changed
+                    ? plugin.getColoredConfigMessage("messages.blacklistAdded", "§aJoueur ajouté à la blacklist.")
+                    : plugin.getColoredConfigMessage("messages.blacklistAlreadyAdded", "§eCe joueur est déjà dans la blacklist."));
+            } else {
+                sender.sendMessage(changed
+                    ? plugin.getColoredConfigMessage("messages.blacklistRemoved", "§aJoueur retiré de la blacklist.")
+                    : plugin.getColoredConfigMessage("messages.blacklistNotPresent", "§eCe joueur n'est pas dans la blacklist."));
+            }
+        }));
+    }
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         final List<String> completions = new ArrayList<>();
@@ -209,11 +302,13 @@ public class MainCommand implements CommandExecutor, TabCompleter {
 
         // /shslots <subcommand>
         if (args.length == 1) {
-            StringUtil.copyPartialMatches(args[0], Arrays.asList("set", "remove", "blacklist", "admin"), completions);
+            List<String> subCommands = new ArrayList<>(Arrays.asList("set", "remove", "blacklist", "admin"));
+            if (plugin.network() != null) subCommands.add("import");
+            StringUtil.copyPartialMatches(args[0], subCommands, completions);
         }
         // /shslots set <slot> <player>
         else if (args.length == 3 && args[0].equalsIgnoreCase("set")) {
-            StringUtil.copyPartialMatches(args[2], Bukkit.getOnlinePlayers().stream().map(Player::getName).collect(Collectors.toList()), completions);
+            StringUtil.copyPartialMatches(args[2], plugin.onlinePlayerNames(), completions);
         }
         // /shslots remove <player>
         else if (args.length == 2 && args[0].equalsIgnoreCase("remove")) {
@@ -228,7 +323,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         }
         // /shslots blacklist add <player>
         else if (args.length == 3 && args[0].equalsIgnoreCase("blacklist") && args[1].equalsIgnoreCase("add")) {
-            StringUtil.copyPartialMatches(args[2], Bukkit.getOnlinePlayers().stream().map(Player::getName).collect(Collectors.toList()), completions);
+            StringUtil.copyPartialMatches(args[2], plugin.onlinePlayerNames(), completions);
         }
         // /shslots blacklist remove <player>
         else if (args.length == 3 && args[0].equalsIgnoreCase("blacklist") && args[1].equalsIgnoreCase("remove")) {

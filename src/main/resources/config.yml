@@ -4,18 +4,21 @@
 #
 # Emplacements d'affichage temporaires (slots) attribués à des joueurs : chaque slot montre un pseudo et un message
 # (placeholders PlaceholderAPI) et est annoncé dans le chat avec un lien vers l'île du sponsor.
+# Avec SHNetwork, les slots sont communs à tous les serveurs de jeu (voir la section reseau en bas du fichier).
 #
 # Commandes :
 #   /shslots set <slot> <joueur> <temps>      Attribue un slot à un joueur pour une durée (exemple : 1h30m).
 #   /shslots remove <joueur>                  Retire le slot d'un joueur.
 #   /shslots blacklist add|remove <joueur>    Ajoute un joueur à la blacklist des slots, ou l'en retire.
 #   /shslots admin                            Ouvre le menu d'administration.
+#   /shslots import                           Avec SHNetwork : reprend slots_data.json, users.yml et la blacklist de ce
+#                                             fichier dans la base partagée, sans toucher à ce qui y est déjà.
 #
 # Permission :
 #   shslots.use   Utiliser /shslots.
 #
-# Les textes sont dans les sections messages et gui de ce fichier. Les messages saisis par les joueurs pour leur slot
-# sont écrits dans le fichier messages de SHLogs.
+# Les textes sont dans les sections messages et gui de ce fichier, ceux du mode réseau dans messages.yml. Les messages
+# saisis par les joueurs pour leur slot sont écrits dans le fichier messages de SHLogs.
 
 # Nombre de slots disponibles (numérotés de 1 à max_slots).
 max_slots: 3
@@ -186,5 +189,26 @@ texture-service:
     # Délai de lecture, en millisecondes.
     read: 7000
 
+# Plusieurs serveurs de jeu : actif seulement si SHNetwork est installé ; sans lui, ou avec actif: false, rien ne change
+# (slots dans slots_data.json, derniers messages dans users.yml, blacklist dans la section blacklist de ce fichier).
+# Avec SHNetwork, slots, derniers messages et blacklist sont dans la base ci-dessous, partagée par tous les serveurs, et :
+#   - /shslots set, remove et blacklist visent un joueur connecté sur n'importe quel serveur ;
+#   - le joueur saisit le message de son slot dans le chat du serveur où il se trouve ;
+#   - un seul serveur, le meneur, lance l'annonce des slots, affichée sur tous les serveurs ;
+#   - slots_data.json, users.yml et la section blacklist ne sont plus ni lus ni écrits : /shslots import les reprend.
+# Tous les serveurs doivent avoir le même config.yml (nombre de slots, annonce, textes). Demande un redémarrage : tout le bloc.
+reseau:
+  actif: true
+  # Canal du bus SHNetwork : changements de la base, invitation à saisir un message et annonces
+  canal: shslots
+  base-de-donnees:
+    url: "jdbc:mariadb://127.0.0.1:3306/bo_net"
+    utilisateur: shslots
+    mot-de-passe: CHANGE_ME
+    # Délai maximal de connexion à la base, en millisecondes. Une base qui ne répond pas fait échouer la commande
+    # avec un message, jamais le serveur.
+    delai-ms: 5000
+
 # Joueurs interdits d'utiliser les slots. Modifié par /shslots blacklist et par le menu d'administration.
+# Avec SHNetwork, la blacklist est dans la base et cette liste n'est plus utilisée.
 blacklist: []

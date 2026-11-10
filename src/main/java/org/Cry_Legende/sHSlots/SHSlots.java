@@ -5,6 +5,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.Sound;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -22,6 +23,8 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
@@ -30,6 +33,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.logging.Level;
 
 public class SHSlots extends JavaPlugin {
 
@@ -42,7 +47,11 @@ public class SHSlots extends JavaPlugin {
     private String announcementHover;
     private String announcementClickCommand;
     private Sound announcementSound;
-    private List<String> blacklistedPlayers;
+    private volatile List<String> blacklistedPlayers;
+
+    // Mode réseau (SHNetwork présent) : null en mode local
+    private NetworkSlots network;
+    private YamlConfiguration networkMessages;
 
     // Managers
     private LogHandler logHandler;
@@ -83,9 +92,14 @@ public class SHSlots extends JavaPlugin {
             getLogger().warning("Erreur lors de l'enregistrement de PlaceholderHandler.");
         }
 
-        // Chargement des données
-        loadSlotsData();
-        loadBlacklist();
+        // Chargement des données : avec SHNetwork, la base partagée les fournit (relue par NetworkSlots)
+        network = openNetwork();
+        if (network == null) {
+            loadSlotsData();
+            loadBlacklist();
+        } else {
+            blacklistedPlayers = new CopyOnWriteArrayList<>();
+        }
 
         // Annonces
         announcementInterval = getConfig().getInt("announcement.interval", 10) * 60 * 20;
@@ -98,13 +112,21 @@ public class SHSlots extends JavaPlugin {
             getLogger().warning("Son invalide dans la configuration : " + soundName);
         }
 
-        startAnnouncementTask();
+        // Avec SHNetwork, seul le serveur meneur annonce : sa tâche démarre quand il est désigné
+        if (network == null) {
+            startAnnouncementTask();
+        } else {
+            network.start();
+        }
     }
 
     @Override
     public void onDisable() {
-        // Rien à écrire si onEnable a échoué avant le chargement : on n'efface pas les données sauvegardées
-        if (placeholderHandler != null && blacklistedPlayers != null) {
+        if (network != null) {
+            // les données sont dans la base : slots_data.json, users.yml et config.yml ne sont pas réécrits
+            network.close();
+        } else if (placeholderHandler != null && blacklistedPlayers != null) {
+            // Rien à écrire si onEnable a échoué avant le chargement : on n'efface pas les données sauvegardées
             saveSlotsData();
             saveBlacklist();
         }
@@ -136,6 +158,97 @@ public class SHSlots extends JavaPlugin {
 
     public List<String> getBlacklistedPlayers() {
         return blacklistedPlayers;
+    }
+
+    /** Mode réseau : remplace la blacklist par celle de la base. */
+    void setBlacklist(List<String> names) {
+        this.blacklistedPlayers = new CopyOnWriteArrayList<>(names);
+    }
+
+    /** Mode réseau : un joueur vient d'être ajouté à la blacklist, sa copie locale suit sans attendre la relecture. */
+    void networkBlacklistAdded(String lowerName, String date) {
+        if (!blacklistedPlayers.contains(lowerName)) {
+            blacklistedPlayers.add(lowerName);
+        }
+        playerDataManager.networkSetBlacklistDate(lowerName, date);
+    }
+
+    /** Mode réseau : un joueur vient d'être retiré de la blacklist. */
+    void networkBlacklistRemoved(String lowerName) {
+        blacklistedPlayers.remove(lowerName);
+        playerDataManager.networkSetBlacklistDate(lowerName, null);
+    }
+
+    /** Mode réseau, ou null si ce serveur tient ses slots seul. */
+    NetworkSlots network() {
+        return network;
+    }
+
+    Map<String, CommandData> getAwaitingResponse() {
+        return awaitingResponse;
+    }
+
+    long getAnnouncementIntervalTicks() {
+        return announcementInterval;
+    }
+
+    /** Exécute sur le fil principal (appelable de n'importe quel fil). */
+    void runMain(Runnable task) {
+        Bukkit.getScheduler().runTask(this, task);
+    }
+
+    /** Pseudos des joueurs connectés : tout le réseau avec SHNetwork, ce serveur sinon. */
+    List<String> onlinePlayerNames() {
+        if (network != null) {
+            return network.onlineNames();
+        }
+        List<String> names = new ArrayList<>();
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            names.add(player.getName());
+        }
+        return names;
+    }
+
+    // --- MODE RÉSEAU ---
+
+    /**
+     * Passe en mode réseau si SHNetwork est installé et que reseau.actif est vrai. Les classes qui touchent à SHNetwork
+     * ne sont résolues qu'ici : sans lui, rien n'est chargé et le plugin garde son fonctionnement d'origine.
+     */
+    private NetworkSlots openNetwork() {
+        if (!getConfig().getBoolean("reseau.actif", true)) return null;
+        if (!getServer().getPluginManager().isPluginEnabled("SHNetwork")) return null;
+        NetworkSlots net = null;
+        try {
+            net = NetworkSlots.open(this);
+            loadNetworkMessages();
+            playerDataManager.useSnapshot(Map.of(), Map.of());
+            getLogger().info("SHNetwork détecté : slots et blacklist en base partagée, une seule annonce pour tout le réseau.");
+            return net;
+        } catch (RuntimeException | LinkageError e) {
+            if (net != null) net.close();
+            getLogger().log(Level.SEVERE, "SHNetwork présent mais mode réseau inutilisable, slots locaux à ce serveur.", e);
+            return null;
+        }
+    }
+
+    /** Textes propres au mode réseau (messages.yml) ; un fichier plus ancien reprend les textes du jar. */
+    private void loadNetworkMessages() {
+        File file = new File(getDataFolder(), "messages.yml");
+        if (!file.exists()) saveResource("messages.yml", false);
+        networkMessages = YamlConfiguration.loadConfiguration(file);
+        try (InputStream in = getResource("messages.yml")) {
+            if (in != null) {
+                networkMessages.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(in, StandardCharsets.UTF_8)));
+            }
+        } catch (IOException e) {
+            getLogger().warning("Impossible de lire messages.yml du jar : " + e.getMessage());
+        }
+    }
+
+    /** Texte de messages.yml, avec les codes couleur &. */
+    String networkMessage(String key) {
+        return ChatColor.translateAlternateColorCodes('&', networkMessages.getString(key, ""));
     }
 
     // --- DATA LOADING/SAVING ---
@@ -227,19 +340,21 @@ public class SHSlots extends JavaPlugin {
                 PlaceholderHandler.SlotData data = placeholderHandler.getSlotDataMap().get(slot);
                 if (data == null || data.getMessageLine(0).isEmpty()) return;
 
-                String sponsor = data.getPlayerName();
-                String message = String.join(" ", data.getMessageLines());
-
-                List<String> formattedMessage = new ArrayList<>();
-                for (String line : announcementMessage) {
-                    formattedMessage.add(line.replace("%sponsor%", sponsor).replace("%message%", message));
-                }
-
-                String hoverText = announcementHover.replace("%sponsor%", sponsor);
-                sendAnnouncement(formattedMessage, hoverText, announcementClickCommand, sponsor);
-                playAnnouncementSound();
+                announce(data.getPlayerName(), String.join(" ", data.getMessageLines()));
             }
         }.runTaskTimer(this, 0, announcementInterval);
+    }
+
+    /** Annonce un slot dans le chat de tous les joueurs de ce serveur, avec son son. */
+    void announce(String sponsor, String message) {
+        List<String> formattedMessage = new ArrayList<>();
+        for (String line : announcementMessage) {
+            formattedMessage.add(line.replace("%sponsor%", sponsor).replace("%message%", message));
+        }
+
+        String hoverText = announcementHover.replace("%sponsor%", sponsor);
+        sendAnnouncement(formattedMessage, hoverText, announcementClickCommand, sponsor);
+        playAnnouncementSound();
     }
 
     private List<Integer> getActiveSponsorSlots() {
