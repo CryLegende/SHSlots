@@ -95,18 +95,18 @@ public class AdminGuiManager implements Listener {
     // --- MENUS ---
 
     public void openMainAdminMenu(Player player) {
-        String title = color(plugin.getConfig().getString("gui.main.title", "&8&lMenu &8| Gestion SHSlots"));
+        String title = color(plugin.messages().string("gui.main.title", "&8&lMenu &8| Gestion SHSlots"));
         Inventory inv = Bukkit.createInventory(new AdminMenuHolder(), 27, title);
 
         fillBorders(inv);
 
         inv.setItem(11, createItem(Material.RED_NETHER_BRICK_WALL,
-            plugin.getConfig().getString("gui.main.blacklist_button.name"),
-            plugin.getConfig().getStringList("gui.main.blacklist_button.lore")));
+            plugin.messages().string("gui.main.blacklist_button.name"),
+            plugin.messages().list("gui.main.blacklist_button.lore")));
 
         inv.setItem(15, createItem(Material.BEACON,
-            plugin.getConfig().getString("gui.main.slots_button.name"),
-            plugin.getConfig().getStringList("gui.main.slots_button.lore")));
+            plugin.messages().string("gui.main.slots_button.name"),
+            plugin.messages().list("gui.main.slots_button.lore")));
 
         player.openInventory(inv);
         playSound(player);
@@ -121,7 +121,7 @@ public class AdminGuiManager implements Listener {
         if (page < 1) page = 1;
         if (page > totalPages) page = totalPages;
 
-        String title = color(plugin.getConfig().getString("gui.blacklist.title", "&8Blacklist")
+        String title = color(plugin.messages().string("gui.blacklist.title", "&8Blacklist")
             .replace("%page%", String.valueOf(page))
             .replace("%max_page%", String.valueOf(totalPages))); // CORRIGÉ
 
@@ -131,7 +131,7 @@ public class AdminGuiManager implements Listener {
         int startIndex = (page - 1) * maxItems;
         int endIndex = Math.min(startIndex + maxItems, blacklistedNames.size());
 
-        List<String> loreTemplate = plugin.getConfig().getStringList("gui.blacklist.skull_lore");
+        List<String> loreTemplate = plugin.messages().list("gui.blacklist.skull_lore");
 
         for (int i = startIndex; i < endIndex; i++) {
             String targetName = blacklistedNames.get(i);
@@ -159,8 +159,8 @@ public class AdminGuiManager implements Listener {
 
         setNavButtons(inv, page, totalPages);
         inv.setItem(49, createItem(Material.EMERALD,
-            plugin.getConfig().getString("gui.blacklist.add_button.name"),
-            plugin.getConfig().getStringList("gui.blacklist.add_button.lore")));
+            plugin.messages().string("gui.blacklist.add_button.name"),
+            plugin.messages().list("gui.blacklist.add_button.lore")));
 
         inv.setItem(53, createItem(Material.BARRIER, "&cRetour Menu", null));
 
@@ -180,7 +180,7 @@ public class AdminGuiManager implements Listener {
         if (page < 1) page = 1;
         if (page > totalPages) page = totalPages;
 
-        String title = color(plugin.getConfig().getString("gui.online_players.title", "&8Joueurs")
+        String title = color(plugin.messages().string("gui.online_players.title", "&8Joueurs")
             .replace("%page%", String.valueOf(page))
             .replace("%max_page%", String.valueOf(totalPages))); // CORRIGÉ (ajout %max_page%)
 
@@ -189,7 +189,7 @@ public class AdminGuiManager implements Listener {
 
         int startIndex = (page - 1) * maxItems;
         int endIndex = Math.min(startIndex + maxItems, online.size());
-        List<String> skullLore = plugin.getConfig().getStringList("gui.online_players.skull_lore");
+        List<String> skullLore = plugin.messages().list("gui.online_players.skull_lore");
 
         for (int i = startIndex; i < endIndex; i++) {
             Player target = online.get(i);
@@ -208,14 +208,14 @@ public class AdminGuiManager implements Listener {
         }
 
         setNavButtons(inv, page, totalPages);
-        inv.setItem(49, createItem(Material.PAPER, plugin.getConfig().getString("gui.slot_details.back_button.name"), null));
+        inv.setItem(49, createItem(Material.PAPER, plugin.messages().string("gui.slot_details.back_button.name"), null));
 
         player.openInventory(inv);
         playSound(player);
     }
 
     public void openSlotsListMenu(Player player) {
-        String title = color(plugin.getConfig().getString("gui.slots_list.title", "&8Slots Actifs"));
+        String title = color(plugin.messages().string("gui.slots_list.title", "&8Slots Actifs"));
         Inventory inv = Bukkit.createInventory(new SlotsListMenuHolder(), 27, title);
         fillBorders(inv);
 
@@ -237,12 +237,12 @@ public class AdminGuiManager implements Listener {
                 plugin.getTextureService().getPlayerHead(owner, (head) -> {
                     ItemMeta meta = head.getItemMeta();
                     if (meta != null) {
-                        String name = plugin.getConfig().getString("gui.slots_list.item_occupied.name", "&eSlot %slot%")
+                        String name = plugin.messages().string("gui.slots_list.item_occupied.name", "&eSlot %slot%")
                             .replace("%slot%", String.valueOf(currentSlotId))
                             .replace("%player%", data.getPlayerName());
                         meta.setDisplayName(color(name));
 
-                        List<String> rawLore = plugin.getConfig().getStringList("gui.slots_list.item_occupied.lore");
+                        List<String> rawLore = plugin.messages().list("gui.slots_list.item_occupied.lore");
                         List<String> lore = new ArrayList<>();
                         for (String s : rawLore)
                             lore.add(s.replace("%time%", timeFormatted).replace("%player%", data.getPlayerName()));
@@ -253,14 +253,14 @@ public class AdminGuiManager implements Listener {
                     if (player.getOpenInventory().getTopInventory().equals(inv)) inv.setItem(guiSlotIndex, head);
                 });
             } else {
-                String name = plugin.getConfig().getString("gui.slots_list.item_free.name")
+                String name = plugin.messages().string("gui.slots_list.item_free.name")
                     .replace("%slot%", String.valueOf(currentSlotId));
-                List<String> lore = plugin.getConfig().getStringList("gui.slots_list.item_free.lore");
+                List<String> lore = plugin.messages().list("gui.slots_list.item_free.lore");
                 inv.setItem(guiSlotIndex, createItem(Material.LIME_STAINED_GLASS_PANE, name, lore));
             }
         }
 
-        inv.setItem(22, createItem(Material.PAPER, plugin.getConfig().getString("gui.slot_details.back_button.name"), null));
+        inv.setItem(22, createItem(Material.PAPER, plugin.messages().string("gui.slot_details.back_button.name"), null));
         player.openInventory(inv);
         playSound(player);
     }
@@ -275,7 +275,7 @@ public class AdminGuiManager implements Listener {
         }
 
         PlaceholderHandler.SlotData data = handler.getSlotDataMap().get(slotId);
-        String title = color(plugin.getConfig().getString("gui.slot_details.title", "&8Gestion")
+        String title = color(plugin.messages().string("gui.slot_details.title", "&8Gestion")
             .replace("%slot%", String.valueOf(slotId)));
 
         Inventory inv = Bukkit.createInventory(new SlotDetailsMenuHolder(slotId), 27, title);
@@ -289,8 +289,8 @@ public class AdminGuiManager implements Listener {
         plugin.getTextureService().getPlayerHead(owner, (head) -> {
             ItemMeta meta = head.getItemMeta();
             if (meta != null) {
-                meta.setDisplayName(color(plugin.getConfig().getString("gui.slot_details.info_item.name")));
-                List<String> rawLore = plugin.getConfig().getStringList("gui.slot_details.info_item.lore");
+                meta.setDisplayName(color(plugin.messages().string("gui.slot_details.info_item.name")));
+                List<String> rawLore = plugin.messages().list("gui.slot_details.info_item.lore");
                 List<String> lore = new ArrayList<>();
                 for (String s : rawLore) {
                     lore.add(s.replace("%player%", data.getPlayerName())
@@ -304,15 +304,15 @@ public class AdminGuiManager implements Listener {
         });
 
         inv.setItem(11, createItem(Material.TNT,
-            plugin.getConfig().getString("gui.slot_details.delete_button.name"),
-            plugin.getConfig().getStringList("gui.slot_details.delete_button.lore")));
+            plugin.messages().string("gui.slot_details.delete_button.name"),
+            plugin.messages().list("gui.slot_details.delete_button.lore")));
 
         inv.setItem(15, createItem(Material.REDSTONE_BLOCK,
-            plugin.getConfig().getString("gui.slot_details.blacklist_button.name"),
-            plugin.getConfig().getStringList("gui.slot_details.blacklist_button.lore")));
+            plugin.messages().string("gui.slot_details.blacklist_button.name"),
+            plugin.messages().list("gui.slot_details.blacklist_button.lore")));
 
         inv.setItem(22, createItem(Material.PAPER,
-            plugin.getConfig().getString("gui.slot_details.back_button.name"),
+            plugin.messages().string("gui.slot_details.back_button.name"),
             null));
 
         player.openInventory(inv);
@@ -338,9 +338,17 @@ public class AdminGuiManager implements Listener {
             Player player = (Player) event.getWhoClicked();
             ItemStack clicked = event.getCurrentItem();
 
+            // Chaque action demande le droit de la sous-commande qui lui correspond
+            if ((holder instanceof BlacklistMenuHolder || holder instanceof OnlinePlayersMenuHolder)
+                && !player.hasPermission("shslots.admin.blacklist")) {
+                player.closeInventory();
+                return;
+            }
+
             // 1. MENU PRINCIPAL
             if (holder instanceof AdminMenuHolder) {
                 if (clicked.getType() == Material.RED_NETHER_BRICK_WALL) {
+                    if (!player.hasPermission("shslots.admin.blacklist")) return;
                     playSound(player);
                     openBlacklistMenu(player, 1);
                 } else if (clicked.getType() == Material.BEACON) {
@@ -367,7 +375,7 @@ public class AdminGuiManager implements Listener {
                     if (plugin.network() != null) {
                         plugin.network().blacklistRemove(name.toLowerCase()).whenComplete((removed, error) -> plugin.runMain(() -> {
                             if (failed(player, error)) return;
-                            player.sendMessage(color(plugin.getConfig().getString("messages.blacklistRemoved")));
+                            player.sendMessage(color(plugin.messages().string("messages.blacklistRemoved")));
                             playSound(player);
                             openBlacklistMenu(player, menu.getPage());
                         }));
@@ -377,7 +385,7 @@ public class AdminGuiManager implements Listener {
                     plugin.getConfig().set("blacklist", plugin.getBlacklistedPlayers());
                     plugin.saveConfig();
                     plugin.getPlayerDataManager().removeBlacklistDate(name);
-                    player.sendMessage(color(plugin.getConfig().getString("messages.blacklistRemoved")));
+                    player.sendMessage(color(plugin.messages().string("messages.blacklistRemoved")));
                     playSound(player);
                     openBlacklistMenu(player, menu.getPage());
                 }
@@ -399,7 +407,7 @@ public class AdminGuiManager implements Listener {
                         if (!plugin.getBlacklistedPlayers().contains(name.toLowerCase())) {
                             plugin.network().blacklistAdd(name.toLowerCase()).whenComplete((added, error) -> plugin.runMain(() -> {
                                 if (failed(player, error)) return;
-                                player.sendMessage(color(plugin.getConfig().getString("messages.blacklistAdded")));
+                                player.sendMessage(color(plugin.messages().string("messages.blacklistAdded")));
                                 playSound(player);
                                 openOnlinePlayersMenu(player, menu.getPage());
                             }));
@@ -411,7 +419,7 @@ public class AdminGuiManager implements Listener {
                         plugin.getConfig().set("blacklist", plugin.getBlacklistedPlayers());
                         plugin.saveConfig();
                         plugin.getPlayerDataManager().setBlacklistDate(name);
-                        player.sendMessage(color(plugin.getConfig().getString("messages.blacklistAdded")));
+                        player.sendMessage(color(plugin.messages().string("messages.blacklistAdded")));
                         playSound(player);
                         openOnlinePlayersMenu(player, menu.getPage());
                     }
@@ -445,12 +453,13 @@ public class AdminGuiManager implements Listener {
                     playSound(player);
                     openSlotsListMenu(player);
                 } else if (clicked.getType() == Material.TNT) {
+                    if (!player.hasPermission("shslots.admin.remove")) return;
                     if (plugin.network() != null) {
                         PlaceholderHandler.SlotData current = plugin.getPlaceholderHandler().getSlotDataMap().get(slotId);
                         String owner = current == null ? null : current.getPlayerName();
                         plugin.network().freeSlot(slotId, owner).whenComplete((freed, error) -> plugin.runMain(() -> {
                             if (failed(player, error)) return;
-                            player.sendMessage(color("&aSlot libéré."));
+                            player.sendMessage(color(plugin.messages().string("messages.slotFreed", "&aSlot libéré.")));
                             playSound(player);
                             openSlotsListMenu(player);
                         }));
@@ -458,10 +467,11 @@ public class AdminGuiManager implements Listener {
                     }
                     plugin.getPlaceholderHandler().removeSlotData(slotId);
                     plugin.saveSlotsData();
-                    player.sendMessage(color("&aSlot libéré."));
+                    player.sendMessage(color(plugin.messages().string("messages.slotFreed", "&aSlot libéré.")));
                     playSound(player);
                     openSlotsListMenu(player);
                 } else if (clicked.getType() == Material.REDSTONE_BLOCK) {
+                    if (!player.hasPermission("shslots.admin.remove") || !player.hasPermission("shslots.admin.blacklist")) return;
                     PlaceholderHandler.SlotData data = plugin.getPlaceholderHandler().getSlotDataMap().get(slotId);
                     if (data != null && plugin.network() != null) {
                         String target = data.getPlayerName();
@@ -472,7 +482,7 @@ public class AdminGuiManager implements Listener {
                                     openSlotsListMenu(player);
                                     return;
                                 }
-                                player.sendMessage(color("&c" + target + " blacklisté et slot libéré."));
+                                player.sendMessage(color(plugin.messages().string("messages.slotFreedBlacklisted", "&c{player} blacklisté et slot libéré.").replace("{player}", target)));
                                 playSound(player);
                                 openSlotsListMenu(player);
                             }));
@@ -488,7 +498,7 @@ public class AdminGuiManager implements Listener {
                             plugin.saveConfig();
                             plugin.getPlayerDataManager().setBlacklistDate(target);
                         }
-                        player.sendMessage(color("&c" + target + " blacklisté et slot libéré."));
+                        player.sendMessage(color(plugin.messages().string("messages.slotFreedBlacklisted", "&c{player} blacklisté et slot libéré.").replace("{player}", target)));
                         playSound(player);
                     }
                     openSlotsListMenu(player);

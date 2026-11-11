@@ -29,11 +29,23 @@ Avec `SHNetwork`, les slots sont communs à tous les serveurs Opale (voir « Mod
 
 | Commande | Alias | Description | Permission |
 |---|---|---|---|
-| `/shslots set <slot> <joueur> <temps>` | — | Attribue un slot à un joueur pour une durée (exemple : `1h30m`). | `shslots.use` |
-| `/shslots remove <joueur>` | — | Retire le slot d'un joueur. | `shslots.use` |
-| `/shslots blacklist <add\|remove> <joueur>` | — | Ajoute un joueur à la blacklist des slots, ou l'en retire. | `shslots.use` |
-| `/shslots admin` | — | Ouvre le menu d'administration. | `shslots.use` |
-| `/shslots import` | — | Avec SHNetwork : reprend les anciennes données locales dans la base du réseau. | `shslots.use` |
+| `/shslots set <slot> <joueur> <temps>` | — | Attribue un slot à un joueur pour une durée (exemple : `1h30m`). | `shslots.admin.set` |
+| `/shslots remove <joueur>` | — | Retire le slot d'un joueur. | `shslots.admin.remove` |
+| `/shslots blacklist <add\|remove> <joueur>` | — | Ajoute un joueur à la blacklist des slots, ou l'en retire. | `shslots.admin.blacklist` |
+| `/shslots blacklist list` | — | Liste les joueurs blacklistés avec la date de leur sanction. | `shslots.admin.blacklist` |
+| `/shslots menu` | `/shslots admin` | Ouvre le menu d'administration (joueur seulement). | `shslots.admin.menu` |
+| `/shslots list` | — | Liste les slots occupés avec leur joueur, leur temps restant et leur message. | `shslots.admin.list` |
+| `/shslots import` | — | Avec SHNetwork : reprend les anciennes données locales dans la base du réseau. | `shslots.admin.import` |
+| `/shslots reload` | — | Recharge `config.yml` et `messages.yml` ; si un fichier est illisible, l'ancienne configuration reste active. Ne touche ni aux slots, ni à `users.yml`, ni à la blacklist. La section `reseau` demande un redémarrage. | `shslots.admin.reload` |
+
+Toutes les sous-commandes marchent depuis la console, sauf `menu`. Les boutons du menu d'administration testent aussi les permissions : libérer un slot demande `shslots.admin.remove`, la blacklist demande `shslots.admin.blacklist`.
+
+## Permissions
+
+| Permission | Description | Par défaut |
+|---|---|---|
+| `shslots.admin` | Toutes les sous-commandes de `/shslots`. | `op` |
+| `shslots.admin.set` `.remove` `.blacklist` `.menu` `.import` `.list` `.reload` | Une sous-commande. | `op` |
 
 ## Configuration
 
@@ -45,7 +57,7 @@ plugins/SHSlots/
 └── <a href="src/main/resources/messages.yml">messages.yml</a>
 </pre>
 
-`messages.yml` ne contient que les textes du mode réseau et n'est créé qu'avec SHNetwork. Les tables du mode réseau sont décrites dans <a href="sql/schema.sql">sql/schema.sql</a>.
+`config.yml` règle le nombre de slots, l'annonce (intervalle, son, commande du clic), la récupération des skins et le mode réseau ; `messages.yml` contient tous les textes (commande, menus d'administration, texte et survol de l'annonce, mode réseau). Les tables du mode réseau sont décrites dans <a href="sql/schema.sql">sql/schema.sql</a>.
 
 Chaque message saisi par un joueur pour son slot est écrit dans le fichier `messages` du dossier `SHSlots` de SHLogs (`plugins/SHLogs/`). Sans SHLogs, les lignes passent dans la console. Le dernier message de chaque joueur, affiché dans le menu d'administration, reste dans `users.yml`.
 

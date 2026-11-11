@@ -39,8 +39,8 @@ public class TextureService {
 
     private final String NO_SKIN_MARKER = "NO_SKIN_DATA";
     private final boolean serverOfflineMode;
-    private final int connectTimeout;
-    private final int readTimeout;
+    private volatile int connectTimeout;
+    private volatile int readTimeout;
 
     public TextureService(SHSlots plugin) {
         this.plugin = plugin;
@@ -53,8 +53,7 @@ public class TextureService {
         // Détection automatique, mais on force le comportement "Offline" pour les têtes si besoin
         this.serverOfflineMode = !Bukkit.getServer().getOnlineMode();
 
-        this.connectTimeout = plugin.getConfig().getInt("texture-service.fetch-timeout.connect", 5000);
-        this.readTimeout = plugin.getConfig().getInt("texture-service.fetch-timeout.read", 7000);
+        reloadSettings();
 
         loadCaches();
     }
@@ -299,5 +298,11 @@ public class TextureService {
             texture = t;
             success = s;
         }
+    }
+
+    /** Relit les délais de récupération des skins dans config.yml. */
+    void reloadSettings() {
+        this.connectTimeout = plugin.getConfig().getInt("texture-service.fetch-timeout.connect", 5000);
+        this.readTimeout = plugin.getConfig().getInt("texture-service.fetch-timeout.read", 7000);
     }
 }

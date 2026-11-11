@@ -247,7 +247,7 @@ public final class NetworkSlots {
         registerAwaiting(player, slot);
         Player target = Bukkit.getPlayerExact(player);
         if (target != null) {
-            target.sendMessage(plugin.getColoredConfigMessage("messages.enterMessageForSlot", "§eEntrez le message pour le slot %slot%...")
+            target.sendMessage(plugin.getColoredMessage("messages.enterMessageForSlot", "§eEntrez le message pour le slot %slot%...")
                 .replace("%slot%", String.valueOf(slot)));
         }
     }
@@ -302,6 +302,14 @@ public final class NetworkSlots {
                 announceNext();
             }
         }.runTaskTimer(plugin, delayTicks, periodTicks);
+    }
+
+    /** Rechargement : le serveur meneur relance sa tâche d'annonce avec l'intervalle lu dans config.yml. */
+    void restartAnnouncement() {
+        NetBus.Leader current = leader;
+        if (current != null && current.isLeader()) {
+            onLeaderAcquired();
+        }
     }
 
     private void onLeaderLost() {

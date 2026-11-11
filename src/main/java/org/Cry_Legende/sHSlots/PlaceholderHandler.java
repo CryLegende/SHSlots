@@ -168,7 +168,7 @@ public class PlaceholderHandler extends PlaceholderExpansion {
         }
     }
 
-    private String formatTime(long timeInMillis) {
+    String formatTime(long timeInMillis) {
         long hours = timeInMillis / 3600000;
         long minutes = (timeInMillis % 3600000) / 60000;
         long seconds = (timeInMillis % 60000) / 1000;

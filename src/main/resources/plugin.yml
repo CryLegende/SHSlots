@@ -14,6 +14,39 @@ libraries:
 
 commands:
   shslots:
-    description: Commande principale pour la gestion des slots.
-    usage: "/shslots <set|remove|blacklist|admin|import>"
-    permission: shslots.use
+    description: Gestion des slots sponsor.
+    usage: "/shslots <set|remove|blacklist|menu|import|list|reload>"
+
+permissions:
+  shslots.admin:
+    description: Toutes les sous-commandes de /shslots.
+    default: op
+    children:
+      shslots.admin.set: true
+      shslots.admin.remove: true
+      shslots.admin.blacklist: true
+      shslots.admin.menu: true
+      shslots.admin.import: true
+      shslots.admin.list: true
+      shslots.admin.reload: true
+  shslots.admin.set:
+    description: /shslots set, attribue un slot à un joueur.
+    default: op
+  shslots.admin.remove:
+    description: /shslots remove, retire le slot d'un joueur.
+    default: op
+  shslots.admin.blacklist:
+    description: /shslots blacklist, gère et liste la blacklist des slots.
+    default: op
+  shslots.admin.menu:
+    description: /shslots menu, ouvre le menu d'administration.
+    default: op
+  shslots.admin.import:
+    description: /shslots import, reprend les fichiers dans la base du réseau (mode réseau).
+    default: op
+  shslots.admin.list:
+    description: /shslots list, liste les slots occupés.
+    default: op
+  shslots.admin.reload:
+    description: /shslots reload, recharge config.yml et messages.yml.
+    default: op

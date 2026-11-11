@@ -5,10 +5,12 @@ import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.Sound;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -23,8 +25,6 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
@@ -48,10 +48,11 @@ public class SHSlots extends JavaPlugin {
     private String announcementClickCommand;
     private Sound announcementSound;
     private volatile List<String> blacklistedPlayers;
+    private BukkitTask announcementTask;
 
     // Mode réseau (SHNetwork présent) : null en mode local
     private NetworkSlots network;
-    private YamlConfiguration networkMessages;
+    private volatile Messages messages;
 
     // Managers
     private LogHandler logHandler;
@@ -64,6 +65,15 @@ public class SHSlots extends JavaPlugin {
         // Chargement de la config
         saveDefaultConfig();
         reloadConfig();
+
+        // Crée messages.yml au premier démarrage, avec les textes des anciennes sections de config.yml
+        Messages.prepare(this);
+        try {
+            messages = Messages.load(this);
+        } catch (IOException | InvalidConfigurationException e) {
+            getLogger().warning("messages.yml illisible, textes du jar utilisés : " + e.getMessage());
+            messages = Messages.defaults(this);
+        }
 
         // Lue depuis le thread du chat (asynchrone) et depuis les commandes
         awaitingResponse = new ConcurrentHashMap<>();
@@ -102,15 +112,7 @@ public class SHSlots extends JavaPlugin {
         }
 
         // Annonces
-        announcementInterval = getConfig().getInt("announcement.interval", 10) * 60 * 20;
-        announcementMessage = getColoredStringList("announcement.message");
-        announcementHover = getColoredConfigMessage("announcement.hover", "&7Cliquez pour plus d'informations.");
-        announcementClickCommand = getConfig().getString("announcement.click_command", "/msg %sponsor% Bonjour !");
-        String soundName = getConfig().getString("announcement.sound", "ENTITY_PLAYER_LEVELUP");
-        announcementSound = sound(soundName);
-        if (announcementSound == null) {
-            getLogger().warning("Son invalide dans la configuration : " + soundName);
-        }
+        loadAnnouncement();
 
         // Avec SHNetwork, seul le serveur meneur annonce : sa tâche démarre quand il est désigné
         if (network == null) {
@@ -133,6 +135,72 @@ public class SHSlots extends JavaPlugin {
         if (textureService != null) {
             textureService.saveCaches();
         }
+    }
+
+    /** Lit l'annonce : intervalle, son et commande dans config.yml, textes dans messages.yml. */
+    private void loadAnnouncement() {
+        announcementInterval = getConfig().getInt("announcement.interval", 10) * 60 * 20;
+        announcementMessage = getColoredStringList("announcement.message");
+        announcementHover = getColoredMessage("announcement.hover", "&7Cliquez pour plus d'informations.");
+        announcementClickCommand = getConfig().getString("announcement.click_command", "/msg %sponsor% Bonjour !");
+        String soundName = getConfig().getString("announcement.sound", "ENTITY_PLAYER_LEVELUP");
+        announcementSound = sound(soundName);
+        if (announcementSound == null) {
+            getLogger().warning("Son invalide dans la configuration : " + soundName);
+        }
+    }
+
+    /**
+     * Relit config.yml et messages.yml. Les deux sont lus à part et ne remplacent l'état en cours que s'ils sont
+     * valides ; sinon l'ancienne configuration reste active. Les slots (slots_data.json ou base), les derniers
+     * messages (users.yml) et la blacklist ne sont pas touchés ; la section reseau ne se recharge pas à chaud.
+     */
+    void reload() throws ReloadException {
+        String file = "config.yml";
+        Messages loaded;
+        try {
+            new YamlConfiguration().load(new File(getDataFolder(), file));
+            file = "messages.yml";
+            loaded = Messages.load(this);
+        } catch (IOException | InvalidConfigurationException e) {
+            throw new ReloadException(file, e);
+        }
+        reloadConfig();
+        messages = loaded;
+        // La blacklist est une donnée tenue en mémoire : on la remet dans la configuration relue
+        if (network == null) {
+            getConfig().set("blacklist", blacklistedPlayers);
+        }
+        maxSlots = getConfig().getInt("max_slots", 6);
+        loadAnnouncement();
+        textureService.reloadSettings();
+        if (network == null) {
+            startAnnouncementTask();
+        } else {
+            network.restartAnnouncement();
+        }
+    }
+
+    /** Fichier de configuration illisible pendant un reload. */
+    static final class ReloadException extends Exception {
+
+        final String file;
+        final String detail;
+
+        ReloadException(String file, Throwable cause) {
+            super(file + " : " + firstLine(cause), cause);
+            this.file = file;
+            this.detail = firstLine(cause);
+        }
+
+        private static String firstLine(Throwable cause) {
+            String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
+            return message.lines().findFirst().orElse("");
+        }
+    }
+
+    Messages messages() {
+        return messages;
     }
 
     // --- GETTERS ---
@@ -221,7 +289,6 @@ public class SHSlots extends JavaPlugin {
         NetworkSlots net = null;
         try {
             net = NetworkSlots.open(this);
-            loadNetworkMessages();
             playerDataManager.useSnapshot(Map.of(), Map.of());
             getLogger().info("SHNetwork détecté : slots et blacklist en base partagée, une seule annonce pour tout le réseau.");
             return net;
@@ -232,23 +299,9 @@ public class SHSlots extends JavaPlugin {
         }
     }
 
-    /** Textes propres au mode réseau (messages.yml) ; un fichier plus ancien reprend les textes du jar. */
-    private void loadNetworkMessages() {
-        File file = new File(getDataFolder(), "messages.yml");
-        if (!file.exists()) saveResource("messages.yml", false);
-        networkMessages = YamlConfiguration.loadConfiguration(file);
-        try (InputStream in = getResource("messages.yml")) {
-            if (in != null) {
-                networkMessages.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(in, StandardCharsets.UTF_8)));
-            }
-        } catch (IOException e) {
-            getLogger().warning("Impossible de lire messages.yml du jar : " + e.getMessage());
-        }
-    }
-
     /** Texte de messages.yml, avec les codes couleur &. */
     String networkMessage(String key) {
-        return ChatColor.translateAlternateColorCodes('&', networkMessages.getString(key, ""));
+        return ChatColor.translateAlternateColorCodes('&', messages.string(key, ""));
     }
 
     // --- DATA LOADING/SAVING ---
@@ -323,7 +376,10 @@ public class SHSlots extends JavaPlugin {
     // --- TASKS & UTILS ---
 
     private void startAnnouncementTask() {
-        new BukkitRunnable() {
+        if (announcementTask != null) {
+            announcementTask.cancel();
+        }
+        announcementTask = new BukkitRunnable() {
             private int currentSlotIndex = 0;
 
             @Override
@@ -403,12 +459,12 @@ public class SHSlots extends JavaPlugin {
         }
     }
 
-    public String getColoredConfigMessage(String path, String defaultMessage) {
-        return ChatColor.translateAlternateColorCodes('&', getConfig().getString(path, defaultMessage));
+    public String getColoredMessage(String path, String defaultMessage) {
+        return ChatColor.translateAlternateColorCodes('&', messages.string(path, defaultMessage));
     }
 
     public List<String> getColoredStringList(String path) {
-        List<String> list = getConfig().getStringList(path);
+        List<String> list = messages.list(path);
         if (list == null) return new ArrayList<>();
         List<String> coloredList = new ArrayList<>();
         for (String item : list) {

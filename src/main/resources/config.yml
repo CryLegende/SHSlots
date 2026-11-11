@@ -6,176 +6,40 @@
 # (placeholders PlaceholderAPI) et est annoncé dans le chat avec un lien vers l'île du sponsor.
 # Avec SHNetwork, les slots sont communs à tous les serveurs de jeu (voir la section reseau en bas du fichier).
 #
-# Commandes :
-#   /shslots set <slot> <joueur> <temps>      Attribue un slot à un joueur pour une durée (exemple : 1h30m).
+# Commandes (racine /shslots) :
+#   /shslots set <slot> <joueur> <temps>      Attribue un slot à un joueur pour une durée (exemple : 1h30m). Appelée en
+#                                             console par le menu /slots.
 #   /shslots remove <joueur>                  Retire le slot d'un joueur.
 #   /shslots blacklist add|remove <joueur>    Ajoute un joueur à la blacklist des slots, ou l'en retire.
-#   /shslots admin                            Ouvre le menu d'administration.
+#   /shslots blacklist list                   Liste les joueurs blacklistés avec la date de leur sanction.
+#   /shslots menu                             Ouvre le menu d'administration (ancien nom : admin).
+#   /shslots list                             Liste les slots occupés avec leur joueur, leur temps restant et leur message.
 #   /shslots import                           Avec SHNetwork : reprend slots_data.json, users.yml et la blacklist de ce
 #                                             fichier dans la base partagée, sans toucher à ce qui y est déjà.
+#   /shslots reload                           Recharge config.yml et messages.yml ; si un fichier est illisible, l'ancienne
+#                                             configuration reste active. Ne touche ni aux slots, ni à users.yml, ni à la
+#                                             blacklist. La section reseau demande un redémarrage.
 #
-# Permission :
-#   shslots.use   Utiliser /shslots.
+# Permissions (op par défaut ; chaque sous-commande a la sienne, shslots.admin les donne toutes) :
+#   shslots.admin             Toutes les sous-commandes de /shslots.
+#   shslots.admin.set         set.
+#   shslots.admin.remove      remove.
+#   shslots.admin.blacklist   blacklist add, remove et list.
+#   shslots.admin.menu        menu.
+#   shslots.admin.list        list.
+#   shslots.admin.import      import.
+#   shslots.admin.reload      reload.
 #
-# Les textes sont dans les sections messages et gui de ce fichier, ceux du mode réseau dans messages.yml. Les messages
-# saisis par les joueurs pour leur slot sont écrits dans le fichier messages de SHLogs.
+# Les textes (commande, menus d'administration, annonce) sont dans messages.yml. Les messages saisis par les joueurs
+# pour leur slot sont écrits dans le fichier messages de SHLogs.
 
 # Nombre de slots disponibles (numérotés de 1 à max_slots).
 max_slots: 3
-
-# Messages du plugin, avec codes couleur &.
-messages:
-  noPermission: '&7&l« &f&lSH &8&l» &cCommande inconnue, essayer autre chose.'
-  help:
-  - '&e&lAide SHSlots'
-  - '&6/shslots set <slot> <joueur> <temps> &f- Attribuer un slot.'
-  - '&6/shslots remove <joueur> &f- Retirer le slot d''un joueur.'
-  - '&6/shslots blacklist <add|remove> <joueur> &f- Gérer la blacklist.'
-  - '&6/shslots admin &f- Ouvrir le menu d''administration.'
-  setUsage: '&7&l« &c&lSH &8&l» &cUsage: /shslots set <slot> <pseudo> <temps>'
-  removeUsage: '&7&l« &c&lSH &8&l» &cUsage: /shslots remove <pseudo>'
-  blacklistUsage: '&7&l« &c&lSH &8&l» &cUsage: /shslots blacklist <add|remove> <pseudo>'
-  slotMessageSet: §7§l« §a§lSH §8§l» §fVotre message a été défini.
-  invalidSlotNumber: '&7&l« &c&lSH &8&l» &7Le numéro de slot doit être entre &c1 &7et
-    &c3&7.'
-  invalidSlotNumberFormat: '&7&l« &c&lSH &8&l» &cNuméro de slot invalide.'
-  enterMessageForSlot: '&7&l« &e&lSH &8&l» &fEntrez dans le chat le message pour ce
-    slot...'
-  playerNotFound: '&7&l« &c&lSH &8&l» &cJoueur non trouvé.'
-  slotOccupied: '&7&l« &c&lSH &8&l» &cCe slot est déjà occupé.'
-  alreadyOwnsSlot: '&7&l« &c&lSH &8&l» &cCe joueur a déjà un slot.'
-  playerNotInSlot: '&7&l« &c&lSH &8&l» &cCe joueur n''occupe aucun slot.'
-  playerRemoved: '&7&l« &a&lSH &8&l» &7Le joueur a bien été retiré du slot.'
-  playerBlacklisted: '&7&l« &c&lSH &8&l» &cCe joueur est blacklisté et ne peut pas
-    utiliser les slots.'
-  blacklistAdded: '&7&l« &a&lSH &8&l» &7Joueur ajouté à la blacklist.'
-  blacklistAlreadyAdded: '&7&l« &6&lSH &8&l» &7Ce joueur est déjà dans la blacklist.'
-  blacklistRemoved: '&7&l« &a&lSH &8&l» &7Joueur retiré de la blacklist.'
-  blacklistNotPresent: '&7&l« &6&lSH &8&l» &7Ce joueur n''est pas dans la blacklist.'
-
-# Textes des menus d'administration, avec codes couleur &. Placeholders : %page%, %max_page%, %slot%, %player%, %time%,
-# %date%, %last_message%, %message%.
-gui:
-  main:
-    title: '&8&lMenu &8| Gestion SHSlots'
-    blacklist_button:
-      name: '&c&lGérer la Blacklist'
-      lore:
-      - ''
-      - '&7&l« &f&lDescription &8&l»'
-      - '&8• &7Affichez la liste des joueurs'
-      - '&7interdits d''utiliser les slots.'
-      - ''
-      - '&8&o(( &c&oCliquez pour gérer &8&o))'
-    slots_button:
-      name: '&e&lGérer les Slots Actifs'
-      lore:
-      - ''
-      - '&7&l« &f&lDescription &8&l»'
-      - '&8• &7Voir les slots en cours,'
-      - '&7voir les temps restants et'
-      - '&7modérer les contenus.'
-      - ''
-      - '&8&o(( &e&oCliquez pour gérer &8&o))'
-  
-  blacklist:
-    title: '&8&lMenu &8| Blacklist (%page%/%max_page%)'
-    add_button:
-      name: '&a&lAjouter un joueur'
-      lore:
-      - ''
-      - '&7&l« &f&lAction &8&l»'
-      - '&8• &7Affiche la liste des joueurs'
-      - '&7connectés pour les sanctionner.'
-      - ''
-      - '&8&o(( &a&oCliquez pour ajouter &8&o))'
-    skull_lore:
-    - ''
-    - '&7&l« &f&lInformations &8&l»'
-    - '&8• &7Sanctionné le: &f%date%'
-    - '&8• &7Dernier Slot: &f%last_message%'
-    - ''
-    - '&8&o(( &c&oClic Gauche pour retirer &8&o))'
-  
-  online_players:
-    title: '&8&lMenu &8| Joueurs en ligne (%page%/%max_page%)'
-    skull_lore:
-    - ''
-    - '&7&l« &f&lAction &8&l»'
-    - '&8• &7Ajouter ce joueur à la'
-    - '&7blacklist des slots.'
-    - ''
-    - '&8&o(( &a&oClic Gauche pour ajouter &8&o))'
-  
-  slots_list:
-    title: '&8&lMenu &8| Slots Actifs'
-    item_free:
-      name: '&a&lSlot %slot% &7(Libre)'
-      lore:
-      - ''
-      - '&7&l« &f&lÉtat &8&l»'
-      - '&8• &7Ce slot est actuellement'
-      - '&7disponible à l''achat.'
-    item_occupied:
-      name: '&e&lSlot %slot% &7(%player%)'
-      lore:
-      - ''
-      - '&7&l« &f&lInformations &8&l»'
-      - '&8• &7Joueur: &f%player%'
-      - '&8• &7Temps: &e%time%'
-      - ''
-      - '&8&o(( &e&oCliquez pour gérer &8&o))'
-  
-  slot_details:
-    title: '&8&lGestion &8| Slot #%slot%'
-    info_item:
-      name: '&e&lInformations'
-      lore:
-      - ''
-      - '&7&l« &f&lDétails du slot &8&l»'
-      - '&8• &7Joueur: &f%player%'
-      - '&8• &7Temps restant: &e%time%'
-      - ''
-      - '&7&l« &f&lMessage &8&l»'
-      - '&f%message%'
-    delete_button:
-      name: '&c&lLibérer ce slot'
-      lore:
-      - ''
-      - '&7&l« &f&lAction &8&l»'
-      - '&8• &7Retire le joueur du slot'
-      - '&7et supprime le message.'
-      - ''
-      - '&8&o(( &c&oCliquez pour libérer &8&o))'
-    blacklist_button:
-      name: '&4&lSanctionner (Blacklist)'
-      lore:
-      - ''
-      - '&7&l« &f&lAction &8&l»'
-      - '&8• &4Libère &7le slot immédiatement.'
-      - '&8• &4Ajoute &7le joueur à la blacklist.'
-      - ''
-      - '&8&o(( &4&oCliquez pour sanctionner &8&o))'
-    back_button:
-      name: '&c&lRetour'
 
 # Annonce des slots dans le chat.
 announcement:
   # Minutes entre deux annonces.
   interval: 15
-  # Texte de l'annonce, envoyée à chaque intervalle pour un slot occupé, à tour de rôle.
-  # Placeholders : %sponsor% (pseudo), %message% (message du slot).
-  message:
-  - ''
-  - '&e⭐ &d&lSLOT SPONSOR &e⭐ &7(&d/slots&7)'
-  - ''
-  - '&fAnnonce de &e%sponsor%'
-  - '&7 %message%'
-  - ''
-  - '&f&o(( &7&oCliquez pour aller sur cette île &f&o))'
-  - ''
-  # Texte affiché au survol de l'annonce.
-  hover: '&7Cliquez pour vous rendre sur l''île de &d%sponsor%'
   # Commande lancée par le clic sur l'annonce.
   click_command: /is warps %sponsor%
   # Son joué avec l'annonce.
@@ -196,7 +60,7 @@ texture-service:
 #   - le joueur saisit le message de son slot dans le chat du serveur où il se trouve ;
 #   - un seul serveur, le meneur, lance l'annonce des slots, affichée sur tous les serveurs ;
 #   - slots_data.json, users.yml et la section blacklist ne sont plus ni lus ni écrits : /shslots import les reprend.
-# Tous les serveurs doivent avoir le même config.yml (nombre de slots, annonce, textes). Demande un redémarrage : tout le bloc.
+# Tous les serveurs doivent avoir le même config.yml et le même messages.yml (nombre de slots, annonce, textes). Demande un redémarrage : tout le bloc.
 reseau:
   actif: true
   # Canal du bus SHNetwork : changements de la base, invitation à saisir un message et annonces

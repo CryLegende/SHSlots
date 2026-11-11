@@ -65,7 +65,7 @@ public class ChatListener implements Listener {
             // Sauvegarde "Dernier message" pour le GUI Admin
             plugin.getPlayerDataManager().setLastMessage(playerName, coloredMessage);
 
-            player.sendMessage(plugin.getColoredConfigMessage("messages.slotMessageSet", "§aVotre message a été défini avec succès."));
+            player.sendMessage(plugin.getColoredMessage("messages.slotMessageSet", "§aVotre message a été défini avec succès."));
         });
     }
 
@@ -83,7 +83,7 @@ public class ChatListener implements Listener {
             } else if (!written) {
                 player.sendMessage(plugin.networkMessage("slot_lost"));
             } else {
-                player.sendMessage(plugin.getColoredConfigMessage("messages.slotMessageSet", "§aVotre message a été défini avec succès."));
+                player.sendMessage(plugin.getColoredMessage("messages.slotMessageSet", "§aVotre message a été défini avec succès."));
             }
         }));
     }

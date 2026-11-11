@@ -1,5 +1,8 @@
-# Textes propres au mode réseau de SHSlots (SHNetwork). Les autres messages sont dans la section messages de config.yml.
-# Codes couleur &.
+# Messages de SHSlots, codes couleur &. Les textes du mode réseau (SHNetwork) sont à la racine, les messages de la commande
+# dans la section messages, les menus dans gui et l'annonce dans announcement.
+#
+# Mode réseau (SHNetwork), à la racine : %SLOTS% = slots ajoutés à la base et %USERS% = joueurs ajoutés (messages et
+# blacklist) dans import_success.
 
 # Une commande ou une saisie n'a pas pu être enregistrée : la base partagée ne répond pas.
 database_error: "&7&l« &c&lSH &8&l» &7La base des slots &cne répond pas&7, réessayez dans un instant."
@@ -12,3 +15,163 @@ import_success: "&7&l« &a&lSH &8&l» &a%SLOTS%&7 slots et &a%USERS%&7 joueurs i
 
 # /shslots import : fichier illisible ou base injoignable.
 import_error: "&7&l« &c&lSH &8&l» &7Importation &céchouée&7, voir la console."
+
+# Commande /shslots et messages aux joueurs. Placeholders : {commands} sous-commandes permises à l'expéditeur, {file} et
+# {error} fichier illisible et erreur de lecture, {count} nombre de lignes, {slot} {player} {time} {message} un slot
+# occupé, {date} date de sanction.
+messages:
+  noPermission: '&7&l« &f&lSH &8&l» &cCommande inconnue, essayer autre chose.'
+  setUsage: '&7&l« &c&lSH &8&l» &cUsage: /shslots set <slot> <pseudo> <temps>'
+  removeUsage: '&7&l« &c&lSH &8&l» &cUsage: /shslots remove <pseudo>'
+  blacklistUsage: '&7&l« &c&lSH &8&l» &cUsage: /shslots blacklist <add|remove> <pseudo>'
+  slotMessageSet: §7§l« §a§lSH §8§l» §fVotre message a été défini.
+  invalidSlotNumber: '&7&l« &c&lSH &8&l» &7Le numéro de slot doit être entre &c1 &7et
+    &c3&7.'
+  invalidSlotNumberFormat: '&7&l« &c&lSH &8&l» &cNuméro de slot invalide.'
+  enterMessageForSlot: '&7&l« &e&lSH &8&l» &fEntrez dans le chat le message pour ce
+    slot...'
+  playerNotFound: '&7&l« &c&lSH &8&l» &cJoueur non trouvé.'
+  slotOccupied: '&7&l« &c&lSH &8&l» &cCe slot est déjà occupé.'
+  alreadyOwnsSlot: '&7&l« &c&lSH &8&l» &cCe joueur a déjà un slot.'
+  playerNotInSlot: '&7&l« &c&lSH &8&l» &cCe joueur n''occupe aucun slot.'
+  playerRemoved: '&7&l« &a&lSH &8&l» &7Le joueur a bien été retiré du slot.'
+  playerBlacklisted: '&7&l« &c&lSH &8&l» &cCe joueur est blacklisté et ne peut pas
+    utiliser les slots.'
+  blacklistAdded: '&7&l« &a&lSH &8&l» &7Joueur ajouté à la blacklist.'
+  blacklistAlreadyAdded: '&7&l« &6&lSH &8&l» &7Ce joueur est déjà dans la blacklist.'
+  blacklistRemoved: '&7&l« &a&lSH &8&l» &7Joueur retiré de la blacklist.'
+  blacklistNotPresent: '&7&l« &6&lSH &8&l» &7Ce joueur n''est pas dans la blacklist.'
+  usage: '&7&l« &e&lSH &8&l» &7Utilisation : &e/shslots <{commands}>&7.'
+  reloaded: '&7&l« &a&lSH &8&l» &7Configuration &arechargée&7. La section &ereseau &7de config.yml demande un redémarrage.'
+  reload-failed: '&7&l« &c&lSH &8&l» &7Rechargement &cimpossible&7, &c{file} &7illisible : &c{error}&7. L''ancienne configuration reste active.'
+  playerOnly: '&7&l« &c&lSH &8&l» &7Seul un &cjoueur &7peut ouvrir le menu.'
+  listHeader: '&7&l« &e&lSH &8&l» &7Slots occupés : &e{count}&7.'
+  listLine: '&8• &eSlot {slot} &7: &f{player} &8(&7{time}&8) &7{message}'
+  listEmpty: '&7&l« &e&lSH &8&l» &7Aucun slot n''est occupé.'
+  blacklistListHeader: '&7&l« &e&lSH &8&l» &7Joueurs blacklistés : &e{count}&7.'
+  blacklistListLine: '&8• &c{player} &8(&7{date}&8)'
+  blacklistListEmpty: '&7&l« &e&lSH &8&l» &7La blacklist est vide.'
+  slotFreed: '&7&l« &a&lSH &8&l» &7Slot &alibéré&7.'
+  slotFreedBlacklisted: '&7&l« &c&lSH &8&l» &c{player} &7blacklisté et slot libéré.'
+
+# Textes des menus d'administration, avec codes couleur &. Placeholders : %page%, %max_page%, %slot%, %player%, %time%,
+# %date%, %last_message%, %message%.
+gui:
+  main:
+    title: '&8&lMenu &8| Gestion SHSlots'
+    blacklist_button:
+      name: '&c&lGérer la Blacklist'
+      lore:
+      - ''
+      - '&7&l« &f&lDescription &8&l»'
+      - '&8• &7Affichez la liste des joueurs'
+      - '&7interdits d''utiliser les slots.'
+      - ''
+      - '&8&o(( &c&oCliquez pour gérer &8&o))'
+    slots_button:
+      name: '&e&lGérer les Slots Actifs'
+      lore:
+      - ''
+      - '&7&l« &f&lDescription &8&l»'
+      - '&8• &7Voir les slots en cours,'
+      - '&7voir les temps restants et'
+      - '&7modérer les contenus.'
+      - ''
+      - '&8&o(( &e&oCliquez pour gérer &8&o))'
+  
+  blacklist:
+    title: '&8&lMenu &8| Blacklist (%page%/%max_page%)'
+    add_button:
+      name: '&a&lAjouter un joueur'
+      lore:
+      - ''
+      - '&7&l« &f&lAction &8&l»'
+      - '&8• &7Affiche la liste des joueurs'
+      - '&7connectés pour les sanctionner.'
+      - ''
+      - '&8&o(( &a&oCliquez pour ajouter &8&o))'
+    skull_lore:
+    - ''
+    - '&7&l« &f&lInformations &8&l»'
+    - '&8• &7Sanctionné le: &f%date%'
+    - '&8• &7Dernier Slot: &f%last_message%'
+    - ''
+    - '&8&o(( &c&oClic Gauche pour retirer &8&o))'
+  
+  online_players:
+    title: '&8&lMenu &8| Joueurs en ligne (%page%/%max_page%)'
+    skull_lore:
+    - ''
+    - '&7&l« &f&lAction &8&l»'
+    - '&8• &7Ajouter ce joueur à la'
+    - '&7blacklist des slots.'
+    - ''
+    - '&8&o(( &a&oClic Gauche pour ajouter &8&o))'
+  
+  slots_list:
+    title: '&8&lMenu &8| Slots Actifs'
+    item_free:
+      name: '&a&lSlot %slot% &7(Libre)'
+      lore:
+      - ''
+      - '&7&l« &f&lÉtat &8&l»'
+      - '&8• &7Ce slot est actuellement'
+      - '&7disponible à l''achat.'
+    item_occupied:
+      name: '&e&lSlot %slot% &7(%player%)'
+      lore:
+      - ''
+      - '&7&l« &f&lInformations &8&l»'
+      - '&8• &7Joueur: &f%player%'
+      - '&8• &7Temps: &e%time%'
+      - ''
+      - '&8&o(( &e&oCliquez pour gérer &8&o))'
+  
+  slot_details:
+    title: '&8&lGestion &8| Slot #%slot%'
+    info_item:
+      name: '&e&lInformations'
+      lore:
+      - ''
+      - '&7&l« &f&lDétails du slot &8&l»'
+      - '&8• &7Joueur: &f%player%'
+      - '&8• &7Temps restant: &e%time%'
+      - ''
+      - '&7&l« &f&lMessage &8&l»'
+      - '&f%message%'
+    delete_button:
+      name: '&c&lLibérer ce slot'
+      lore:
+      - ''
+      - '&7&l« &f&lAction &8&l»'
+      - '&8• &7Retire le joueur du slot'
+      - '&7et supprime le message.'
+      - ''
+      - '&8&o(( &c&oCliquez pour libérer &8&o))'
+    blacklist_button:
+      name: '&4&lSanctionner (Blacklist)'
+      lore:
+      - ''
+      - '&7&l« &f&lAction &8&l»'
+      - '&8• &4Libère &7le slot immédiatement.'
+      - '&8• &4Ajoute &7le joueur à la blacklist.'
+      - ''
+      - '&8&o(( &4&oCliquez pour sanctionner &8&o))'
+    back_button:
+      name: '&c&lRetour'
+
+# Annonce des slots dans le chat : texte et survol. L'intervalle, le son et la commande de clic sont dans config.yml.
+announcement:
+  # Texte de l'annonce, envoyée à chaque intervalle pour un slot occupé, à tour de rôle.
+  # Placeholders : %sponsor% (pseudo), %message% (message du slot).
+  message:
+  - ''
+  - '&e⭐ &d&lSLOT SPONSOR &e⭐ &7(&d/slots&7)'
+  - ''
+  - '&fAnnonce de &e%sponsor%'
+  - '&7 %message%'
+  - ''
+  - '&f&o(( &7&oCliquez pour aller sur cette île &f&o))'
+  - ''
+  # Texte affiché au survol de l'annonce.
+  hover: '&7Cliquez pour vous rendre sur l''île de &d%sponsor%'
