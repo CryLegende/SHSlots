@@ -23,7 +23,7 @@ Avec `SHNetwork`, les slots sont communs à tous les serveurs Opale (voir « Mod
 ## Dépendances
 
 - Obligatoires : `PlaceholderAPI`
-- Optionnelles : `SHLogs`, `SHNetwork`
+- Optionnelles : `SHLogs`, `SHNetwork`, `SHSkins` (têtes des menus d'administration avec le skin du joueur ; sans lui, têtes sans texture : Steve ou Alex)
 
 ## Commandes
 
@@ -57,7 +57,7 @@ plugins/SHSlots/
 └── <a href="src/main/resources/messages.yml">messages.yml</a>
 </pre>
 
-`config.yml` règle le nombre de slots, l'annonce (intervalle, son, commande du clic), la récupération des skins et le mode réseau ; `messages.yml` contient tous les textes (commande, menus d'administration, texte et survol de l'annonce, mode réseau). Les tables du mode réseau sont décrites dans <a href="sql/schema.sql">sql/schema.sql</a>.
+`config.yml` règle le nombre de slots, l'annonce (intervalle, son, commande du clic) et le mode réseau ; `messages.yml` contient tous les textes (commande, menus d'administration, texte et survol de l'annonce, mode réseau). Les tables du mode réseau sont décrites dans <a href="sql/schema.sql">sql/schema.sql</a>.
 
 Chaque message saisi par un joueur pour son slot est écrit dans le fichier `messages` du dossier `SHSlots` de SHLogs (`plugins/SHLogs/`). Sans SHLogs, les lignes passent dans la console. Le dernier message de chaque joueur, affiché dans le menu d'administration, reste dans `users.yml`.
 
@@ -92,7 +92,9 @@ Java 25 et Maven :
 mvn clean package
 ```
 
-Le jar est généré dans `target/`.
+SHSkins doit être installé dans le dépôt Maven local avant la compilation : `mvn install` dans `SHSkins-Velocity`.
+
+Le jar est `target/SHSlots-1.2.jar`.
 
 ---
 

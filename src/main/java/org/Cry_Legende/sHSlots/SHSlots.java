@@ -56,7 +56,6 @@ public class SHSlots extends JavaPlugin {
 
     // Managers
     private LogHandler logHandler;
-    private TextureService textureService;
     private AdminGuiManager adminGuiManager;
     private PlayerDataManager playerDataManager;
 
@@ -79,7 +78,6 @@ public class SHSlots extends JavaPlugin {
         awaitingResponse = new ConcurrentHashMap<>();
 
         // Initialisation des services (Ordre important)
-        this.textureService = new TextureService(this);
         this.playerDataManager = new PlayerDataManager(this);
         this.logHandler = new LogHandler(this);
         this.adminGuiManager = new AdminGuiManager(this);
@@ -132,9 +130,6 @@ public class SHSlots extends JavaPlugin {
             saveSlotsData();
             saveBlacklist();
         }
-        if (textureService != null) {
-            textureService.saveCaches();
-        }
     }
 
     /** Lit l'annonce : intervalle, son et commande dans config.yml, textes dans messages.yml. */
@@ -173,7 +168,6 @@ public class SHSlots extends JavaPlugin {
         }
         maxSlots = getConfig().getInt("max_slots", 6);
         loadAnnouncement();
-        textureService.reloadSettings();
         if (network == null) {
             startAnnouncementTask();
         } else {
@@ -204,10 +198,6 @@ public class SHSlots extends JavaPlugin {
     }
 
     // --- GETTERS ---
-    public TextureService getTextureService() {
-        return textureService;
-    }
-
     public AdminGuiManager getAdminGuiManager() {
         return adminGuiManager;
     }

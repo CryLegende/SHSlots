@@ -32,6 +32,9 @@
 #
 # Les textes (commande, menus d'administration, annonce) sont dans messages.yml. Les messages saisis par les joueurs
 # pour leur slot sont écrits dans le fichier messages de SHLogs.
+#
+# Les têtes des menus d'administration prennent le skin des joueurs dans SHSkins quand il est installé. Sans lui, elles
+# n'ont que l'UUID et le pseudo (skin par défaut) ; le plugin ne fait aucune requête à Mojang.
 
 # Nombre de slots disponibles (numérotés de 1 à max_slots).
 max_slots: 3
@@ -44,14 +47,6 @@ announcement:
   click_command: /is warps %sponsor%
   # Son joué avec l'annonce.
   sound: BLOCK_NOTE_BLOCK_XYLOPHONE
-
-# Récupération des skins des joueurs pour les têtes des menus.
-texture-service:
-  fetch-timeout:
-    # Délai de connexion, en millisecondes.
-    connect: 5000
-    # Délai de lecture, en millisecondes.
-    read: 7000
 
 # Plusieurs serveurs de jeu : actif seulement si SHNetwork est installé ; sans lui, ou avec actif: false, rien ne change
 # (slots dans slots_data.json, derniers messages dans users.yml, blacklist dans la section blacklist de ce fichier).

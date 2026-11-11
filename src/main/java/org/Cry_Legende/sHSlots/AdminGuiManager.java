@@ -3,7 +3,6 @@ package org.Cry_Legende.sHSlots;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -135,7 +134,6 @@ public class AdminGuiManager implements Listener {
 
         for (int i = startIndex; i < endIndex; i++) {
             String targetName = blacklistedNames.get(i);
-            OfflinePlayer offPlayer = Bukkit.getOfflinePlayer(targetName);
             int slotIndex = innerSlots[i - startIndex];
 
             String date = plugin.getPlayerDataManager().getBlacklistDate(targetName);
@@ -146,15 +144,14 @@ public class AdminGuiManager implements Listener {
                 finalLore.add(line.replace("%date%", date).replace("%last_message%", lastMsg));
             }
 
-            plugin.getTextureService().getPlayerHead(offPlayer, (head) -> {
-                ItemMeta meta = head.getItemMeta();
-                if (meta != null) {
-                    meta.setDisplayName(color("&c" + targetName));
-                    meta.setLore(colorList(finalLore));
-                    head.setItemMeta(meta);
-                }
-                if (player.getOpenInventory().getTopInventory().equals(inv)) inv.setItem(slotIndex, head);
-            });
+            ItemStack head = PlayerHeads.create(null, targetName);
+            ItemMeta meta = head.getItemMeta();
+            if (meta != null) {
+                meta.setDisplayName(color("&c" + targetName));
+                meta.setLore(colorList(finalLore));
+                head.setItemMeta(meta);
+            }
+            inv.setItem(slotIndex, head);
         }
 
         setNavButtons(inv, page, totalPages);
@@ -195,16 +192,14 @@ public class AdminGuiManager implements Listener {
             Player target = online.get(i);
             int slotIndex = innerSlots[i - startIndex];
 
-            // Appel TextureService qui gère maintenant correctement les joueurs en ligne sur crack
-            plugin.getTextureService().getPlayerHead(target, (head) -> {
-                ItemMeta meta = head.getItemMeta();
-                if (meta != null) {
-                    meta.setDisplayName(color("&a" + target.getName()));
-                    meta.setLore(colorList(skullLore));
-                    head.setItemMeta(meta);
-                }
-                if (player.getOpenInventory().getTopInventory().equals(inv)) inv.setItem(slotIndex, head);
-            });
+            ItemStack head = PlayerHeads.create(target.getUniqueId(), target.getName());
+            ItemMeta meta = head.getItemMeta();
+            if (meta != null) {
+                meta.setDisplayName(color("&a" + target.getName()));
+                meta.setLore(colorList(skullLore));
+                head.setItemMeta(meta);
+            }
+            inv.setItem(slotIndex, head);
         }
 
         setNavButtons(inv, page, totalPages);
@@ -231,27 +226,25 @@ public class AdminGuiManager implements Listener {
 
             if (handler.isSlotOccupied(i)) {
                 PlaceholderHandler.SlotData data = handler.getSlotDataMap().get(i);
-                OfflinePlayer owner = Bukkit.getOfflinePlayer(data.getPlayerName());
                 String timeFormatted = formatTime(data.getRemainingTime());
 
-                plugin.getTextureService().getPlayerHead(owner, (head) -> {
-                    ItemMeta meta = head.getItemMeta();
-                    if (meta != null) {
-                        String name = plugin.messages().string("gui.slots_list.item_occupied.name", "&eSlot %slot%")
-                            .replace("%slot%", String.valueOf(currentSlotId))
-                            .replace("%player%", data.getPlayerName());
-                        meta.setDisplayName(color(name));
+                ItemStack head = PlayerHeads.create(null, data.getPlayerName());
+                ItemMeta meta = head.getItemMeta();
+                if (meta != null) {
+                    String name = plugin.messages().string("gui.slots_list.item_occupied.name", "&eSlot %slot%")
+                        .replace("%slot%", String.valueOf(currentSlotId))
+                        .replace("%player%", data.getPlayerName());
+                    meta.setDisplayName(color(name));
 
-                        List<String> rawLore = plugin.messages().list("gui.slots_list.item_occupied.lore");
-                        List<String> lore = new ArrayList<>();
-                        for (String s : rawLore)
-                            lore.add(s.replace("%time%", timeFormatted).replace("%player%", data.getPlayerName()));
+                    List<String> rawLore = plugin.messages().list("gui.slots_list.item_occupied.lore");
+                    List<String> lore = new ArrayList<>();
+                    for (String s : rawLore)
+                        lore.add(s.replace("%time%", timeFormatted).replace("%player%", data.getPlayerName()));
 
-                        meta.setLore(colorList(lore));
-                        head.setItemMeta(meta);
-                    }
-                    if (player.getOpenInventory().getTopInventory().equals(inv)) inv.setItem(guiSlotIndex, head);
-                });
+                    meta.setLore(colorList(lore));
+                    head.setItemMeta(meta);
+                }
+                inv.setItem(guiSlotIndex, head);
             } else {
                 String name = plugin.messages().string("gui.slots_list.item_free.name")
                     .replace("%slot%", String.valueOf(currentSlotId));
@@ -284,24 +277,21 @@ public class AdminGuiManager implements Listener {
         String timeFormatted = formatTime(data.getRemainingTime());
         String fullMessage = String.join(" ", data.getMessageLines());
 
-        OfflinePlayer owner = Bukkit.getOfflinePlayer(data.getPlayerName());
-
-        plugin.getTextureService().getPlayerHead(owner, (head) -> {
-            ItemMeta meta = head.getItemMeta();
-            if (meta != null) {
-                meta.setDisplayName(color(plugin.messages().string("gui.slot_details.info_item.name")));
-                List<String> rawLore = plugin.messages().list("gui.slot_details.info_item.lore");
-                List<String> lore = new ArrayList<>();
-                for (String s : rawLore) {
-                    lore.add(s.replace("%player%", data.getPlayerName())
-                        .replace("%time%", timeFormatted)
-                        .replace("%message%", fullMessage));
-                }
-                meta.setLore(colorList(lore));
-                head.setItemMeta(meta);
+        ItemStack head = PlayerHeads.create(null, data.getPlayerName());
+        ItemMeta meta = head.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(color(plugin.messages().string("gui.slot_details.info_item.name")));
+            List<String> rawLore = plugin.messages().list("gui.slot_details.info_item.lore");
+            List<String> lore = new ArrayList<>();
+            for (String s : rawLore) {
+                lore.add(s.replace("%player%", data.getPlayerName())
+                    .replace("%time%", timeFormatted)
+                    .replace("%message%", fullMessage));
             }
-            if (player.getOpenInventory().getTopInventory().equals(inv)) inv.setItem(13, head);
-        });
+            meta.setLore(colorList(lore));
+            head.setItemMeta(meta);
+        }
+        inv.setItem(13, head);
 
         inv.setItem(11, createItem(Material.TNT,
             plugin.messages().string("gui.slot_details.delete_button.name"),
