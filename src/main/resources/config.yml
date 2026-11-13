@@ -44,7 +44,7 @@ announcement:
   # Minutes entre deux annonces.
   interval: 15
   # Commande lancée par le clic sur l'annonce.
-  click_command: /is warps %sponsor%
+  click_command: /msg %sponsor% Bonjour !
   # Son joué avec l'annonce.
   sound: BLOCK_NOTE_BLOCK_XYLOPHONE
 
@@ -61,7 +61,7 @@ reseau:
   # Canal du bus SHNetwork : changements de la base, invitation à saisir un message et annonces
   canal: shslots
   base-de-donnees:
-    url: "jdbc:mariadb://127.0.0.1:3306/bo_net"
+    url: "jdbc:mariadb://127.0.0.1:3306/minecraft"
     utilisateur: shslots
     mot-de-passe: CHANGE_ME
     # Délai maximal de connexion à la base, en millisecondes. Une base qui ne répond pas fait échouer la commande
